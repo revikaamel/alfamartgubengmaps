@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../data/places.dart';
 import 'detail_page.dart';
@@ -13,12 +14,15 @@ class SavedPage extends StatelessWidget {
     return Scaffold(
 
       appBar: AppBar(
-        title: const Text("Tempat Tersimpan"),
+        title: const Text(
+          "Tempat Tersimpan",
+        ),
       ),
 
       body: savedPlaces.isEmpty
 
           ? const Center(
+
               child: Text(
                 "Belum ada tempat tersimpan",
               ),
@@ -30,26 +34,70 @@ class SavedPage extends StatelessWidget {
 
               itemBuilder: (context, index) {
 
-                var place = savedPlaces[index];
+                var place =
+                    savedPlaces[index];
 
                 return Card(
 
-                  margin: const EdgeInsets.all(10),
+                  margin:
+                      const EdgeInsets.all(10),
+
+                  shape:
+                      RoundedRectangleBorder(
+
+                    borderRadius:
+                        BorderRadius.circular(
+                            18),
+                  ),
 
                   child: ListTile(
 
-                    leading: CircleAvatar(
-                      backgroundImage:
-                          AssetImage(place['photo']),
+                    contentPadding:
+                        const EdgeInsets.symmetric(
+
+                      horizontal: 15,
+                      vertical: 10,
                     ),
 
-                    title: Text(place['name']),
+                    leading: CircleAvatar(
 
-                    subtitle:
-                        Text(place['address']),
+                      radius: 28,
+
+                      backgroundImage:
+                          AssetImage(
+                        place['photo'],
+                      ),
+                    ),
+
+                    title: Text(
+
+                      place['name'],
+
+                      style: const TextStyle(
+
+                        fontWeight:
+                            FontWeight.bold,
+
+                        fontSize: 16,
+                      ),
+                    ),
+
+                    subtitle: Padding(
+
+                      padding:
+                          const EdgeInsets.only(
+                              top: 5),
+
+                      child: Text(
+                        place['address'],
+                      ),
+                    ),
 
                     trailing: const Icon(
+
                       Icons.arrow_forward_ios,
+
+                      size: 18,
                     ),
 
                     onTap: () {
@@ -60,10 +108,16 @@ class SavedPage extends StatelessWidget {
 
                         MaterialPageRoute(
 
-                          builder: (_) => DetailPage(
+                          builder: (_) =>
+                              DetailPage(
+
                             place: place,
+
                             currentLocation:
-                                place['currentLocation'],
+                                LatLng(
+                              -7.265,
+                              112.752,
+                            ),
                           ),
                         ),
                       );
