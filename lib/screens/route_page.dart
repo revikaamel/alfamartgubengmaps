@@ -29,6 +29,8 @@ class _RoutePageState
 
   List<LatLng> routePoints = [];
 
+  bool isLoading = true;
+
   @override
   void initState() {
 
@@ -39,50 +41,69 @@ class _RoutePageState
 
   Future<void> getRoute() async {
 
-    String profile = "driving";
+    setState(() {
+      isLoading = true;
+    });
 
-    if (vehicle == "Jalan Kaki") {
-      profile = "foot";
-    } else if (vehicle == "Sepeda") {
-      profile = "bike";
-    }
+    try {
 
-    final url =
-        "https://router.project-osrm.org/route/v1/"
-        "$profile/"
-        "${widget.currentLocation.longitude},"
-        "${widget.currentLocation.latitude};"
-        "${widget.place['lng']},"
-        "${widget.place['lat']}"
-        "?overview=full&geometries=geojson";
+      String profile = "driving";
 
-    final response =
-        await http.get(Uri.parse(url));
+      if (vehicle == "Jalan Kaki") {
 
-    if (response.statusCode == 200) {
+        profile = "foot";
 
-      final data =
-          jsonDecode(response.body);
+      } else if (vehicle == "Sepeda") {
 
-      final coordinates =
-          data['routes'][0]['geometry']
-              ['coordinates'];
-
-      List<LatLng> points = [];
-
-      for (var point in coordinates) {
-
-        points.add(
-          LatLng(
-            point[1],
-            point[0],
-          ),
-        );
+        profile = "cycling";
       }
+
+      final url =
+          "https://router.project-osrm.org/route/v1/"
+          "$profile/"
+          "${widget.currentLocation.longitude},"
+          "${widget.currentLocation.latitude};"
+          "${widget.place['lng']},"
+          "${widget.place['lat']}"
+          "?overview=full&geometries=geojson";
+
+      final response =
+          await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+
+        final data =
+            jsonDecode(response.body);
+
+        final coordinates =
+            data['routes'][0]['geometry']
+                ['coordinates'];
+
+        List<LatLng> points = [];
+
+        for (var point in coordinates) {
+
+          points.add(
+
+            LatLng(
+              point[1],
+              point[0],
+            ),
+          );
+        }
+
+        setState(() {
+
+          routePoints = points;
+
+          isLoading = false;
+        });
+      }
+    } catch (e) {
 
       setState(() {
 
-        routePoints = points;
+        isLoading = false;
       });
     }
   }
@@ -129,6 +150,7 @@ class _RoutePageState
         (hours * 60).round();
 
     if (minutes <= 0) {
+
       minutes = 1;
     }
 
@@ -163,7 +185,7 @@ class _RoutePageState
                 initialCenter:
                     widget.currentLocation,
 
-                initialZoom: 15,
+                initialZoom: 13,
               ),
 
               children: [
@@ -180,7 +202,19 @@ class _RoutePageState
 
                     Polyline(
 
-                      points: routePoints,
+                      points: routePoints.isEmpty
+
+                          ? [
+
+                              widget.currentLocation,
+
+                              LatLng(
+                                widget.place['lat'],
+                                widget.place['lng'],
+                              ),
+                            ]
+
+                          : routePoints,
 
                       strokeWidth: 6,
 
@@ -233,6 +267,13 @@ class _RoutePageState
                     ),
                   ],
                 ),
+
+                if (isLoading)
+
+                  const Center(
+                    child:
+                        CircularProgressIndicator(),
+                  ),
               ],
             ),
           ),
