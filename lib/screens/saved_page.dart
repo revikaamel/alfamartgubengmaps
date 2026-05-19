@@ -4,9 +4,17 @@ import 'package:latlong2/latlong.dart';
 import '../data/places.dart';
 import 'detail_page.dart';
 
-class SavedPage extends StatelessWidget {
+class SavedPage extends StatefulWidget {
 
   const SavedPage({super.key});
+
+  @override
+  State<SavedPage> createState() =>
+      _SavedPageState();
+}
+
+class _SavedPageState
+    extends State<SavedPage> {
 
   @override
   Widget build(BuildContext context) {
@@ -42,62 +50,14 @@ class SavedPage extends StatelessWidget {
                   margin:
                       const EdgeInsets.all(10),
 
-                  shape:
-                      RoundedRectangleBorder(
-
-                    borderRadius:
-                        BorderRadius.circular(
-                            18),
-                  ),
-
                   child: ListTile(
 
-                    contentPadding:
-                        const EdgeInsets.symmetric(
-
-                      horizontal: 15,
-                      vertical: 10,
-                    ),
-
-                    leading: CircleAvatar(
-
-                      radius: 28,
-
-                      backgroundImage:
-                          AssetImage(
-                        'assets/images/${place['photo']}',
-                      ),
-                    ),
-
                     title: Text(
-
                       place['name'],
-
-                      style: const TextStyle(
-
-                        fontWeight:
-                            FontWeight.bold,
-
-                        fontSize: 16,
-                      ),
                     ),
 
-                    subtitle: Padding(
-
-                      padding:
-                          const EdgeInsets.only(
-                              top: 5),
-
-                      child: Text(
-                        place['address'],
-                      ),
-                    ),
-
-                    trailing: const Icon(
-
-                      Icons.arrow_forward_ios,
-
-                      size: 18,
+                    subtitle: Text(
+                      place['address'],
                     ),
 
                     onTap: () {
@@ -120,7 +80,10 @@ class SavedPage extends StatelessWidget {
                             ),
                           ),
                         ),
-                      );
+                      ).then((_) {
+
+                        setState(() {});
+                      });
                     },
                   ),
                 );
