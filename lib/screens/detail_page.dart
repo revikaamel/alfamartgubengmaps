@@ -148,7 +148,7 @@ class _DetailPageState
 
             Image.asset(
 
-              'assets/images/${widget.place['photo']}.jpg',
+              'assets/images/${widget.place['photo']}',
 
               width: double.infinity,
 

@@ -65,7 +65,7 @@ class SavedPage extends StatelessWidget {
 
                       backgroundImage:
                           AssetImage(
-                        place['photo'],
+                        'assets/images/${place['photo']}',
                       ),
                     ),
 

@@ -3,12 +3,13 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 
+import '../admin/admin_page.dart';
 import '../services/api_service.dart';
+import '../data/places.dart';
 import 'detail_page.dart';
 import 'saved_page.dart';
 
 class HomePage extends StatefulWidget {
-
   const HomePage({super.key});
 
   @override
@@ -87,6 +88,8 @@ class _HomePageState
 
         isLoading = false;
       });
+
+      print(e);
     }
   }
 
@@ -104,6 +107,30 @@ class _HomePageState
       lat,
       lng,
     );
+  }
+
+  String getPhotoPath(String photo) {
+
+    if (photo.contains(".")) {
+      return "assets/images/$photo";
+    }
+
+    List extensions = [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".webp"
+    ];
+
+    for (var ext in extensions) {
+
+      String path =
+          "assets/images/$photo$ext";
+
+      return path;
+    }
+
+    return "assets/images/default.png";
   }
 
   @override
@@ -314,7 +341,7 @@ class _HomePageState
                         ),
                       ),
                     );
-                  }),
+                  }).toList(),
                 ],
               ),
             ],
@@ -493,6 +520,51 @@ class _HomePageState
                     },
                   ),
                 ),
+
+                const SizedBox(
+                    width: 10),
+
+                GestureDetector(
+
+                  onTap: () {
+
+                    Navigator.push(
+
+                      context,
+
+                      MaterialPageRoute(
+
+                        builder: (_) =>
+                            const AdminPage(),
+                      ),
+                    ).then((_) {
+
+                      fetchPlaces();
+                    });
+                  },
+
+                  child: Container(
+
+                    width: 50,
+                    height: 50,
+
+                    decoration:
+                        const BoxDecoration(
+
+                      color:
+                          Colors.white,
+
+                      shape:
+                          BoxShape.circle,
+                    ),
+
+                    child: const Icon(
+
+                      Icons
+                          .admin_panel_settings,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -563,8 +635,13 @@ class _HomePageState
 
                             backgroundImage:
                                 AssetImage(
-                              'assets/images/${place['photo']}.jpg',
+                              getPhotoPath(
+                                place['photo'],
+                              ),
                             ),
+
+                            onBackgroundImageError:
+                                (_, __) {},
                           ),
 
                           title: Text(
@@ -577,26 +654,36 @@ class _HomePageState
                             "${(distance / 1000).toStringAsFixed(1)} km",
                           ),
 
-                          onTap: () {
+                          trailing:
+                              IconButton(
 
-                            Navigator.push(
+                            icon:
+                                const Icon(
+                              Icons.route,
+                            ),
 
-                              context,
+                            onPressed:
+                                () {
 
-                              MaterialPageRoute(
+                              Navigator.push(
 
-                                builder: (_) =>
-                                    DetailPage(
+                                context,
 
-                                  place:
-                                      place,
+                                MaterialPageRoute(
 
-                                  currentLocation:
-                                      currentLocation,
+                                  builder: (_) =>
+                                      DetailPage(
+
+                                    place:
+                                        place,
+
+                                    currentLocation:
+                                        currentLocation,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         );
                       },
                     ),
