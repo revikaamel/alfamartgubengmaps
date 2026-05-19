@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 
 class RoutePage extends StatefulWidget {
 
@@ -23,6 +26,78 @@ class _RoutePageState
     extends State<RoutePage> {
 
   String vehicle = "Motor";
+
+  List<LatLng> routePoints = [];
+
+  @override
+  void initState() {
+
+    super.initState();
+
+    getRoute();
+  }
+
+  Future<void> getRoute() async {
+
+    String profile = "driving";
+
+    if (vehicle == "Jalan Kaki") {
+      profile = "foot";
+    } else if (vehicle == "Sepeda") {
+      profile = "bike";
+    }
+
+    final url =
+        "https://router.project-osrm.org/route/v1/"
+        "$profile/"
+        "${widget.currentLocation.longitude},"
+        "${widget.currentLocation.latitude};"
+        "${widget.place['lng']},"
+        "${widget.place['lat']}"
+        "?overview=full&geometries=geojson";
+
+    final response =
+        await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+
+      final data =
+          jsonDecode(response.body);
+
+      final coordinates =
+          data['routes'][0]['geometry']
+              ['coordinates'];
+
+      List<LatLng> points = [];
+
+      for (var point in coordinates) {
+
+        points.add(
+          LatLng(
+            point[1],
+            point[0],
+          ),
+        );
+      }
+
+      setState(() {
+
+        routePoints = points;
+      });
+    }
+  }
+
+  double getDistance() {
+
+    return Geolocator.distanceBetween(
+
+      widget.currentLocation.latitude,
+      widget.currentLocation.longitude,
+
+      widget.place['lat'],
+      widget.place['lng'],
+    );
+  }
 
   double getSpeed() {
 
@@ -63,18 +138,8 @@ class _RoutePageState
   @override
   Widget build(BuildContext context) {
 
-    double distanceInMeters =
-        Geolocator.distanceBetween(
-
-      widget.currentLocation.latitude,
-      widget.currentLocation.longitude,
-
-      widget.place['lat'],
-      widget.place['lng'],
-    );
-
     double distanceKm =
-        distanceInMeters / 1000;
+        getDistance() / 1000;
 
     String estimation =
         getEstimatedTime(distanceKm);
@@ -115,15 +180,7 @@ class _RoutePageState
 
                     Polyline(
 
-                      points: [
-
-                        widget.currentLocation,
-
-                        LatLng(
-                          widget.place['lat'],
-                          widget.place['lng'],
-                        )
-                      ],
+                      points: routePoints,
 
                       strokeWidth: 6,
 
@@ -145,8 +202,11 @@ class _RoutePageState
                       height: 80,
 
                       child: const Icon(
+
                         Icons.my_location,
+
                         color: Colors.blue,
+
                         size: 40,
                       ),
                     ),
@@ -154,6 +214,7 @@ class _RoutePageState
                     Marker(
 
                       point: LatLng(
+
                         widget.place['lat'],
                         widget.place['lng'],
                       ),
@@ -162,8 +223,11 @@ class _RoutePageState
                       height: 80,
 
                       child: const Icon(
+
                         Icons.location_on,
+
                         color: Colors.red,
+
                         size: 40,
                       ),
                     ),
@@ -208,12 +272,14 @@ class _RoutePageState
                     );
                   }).toList(),
 
-                  onChanged: (value) {
+                  onChanged: (value) async {
 
                     setState(() {
 
                       vehicle = value!;
                     });
+
+                    await getRoute();
                   },
                 ),
 
