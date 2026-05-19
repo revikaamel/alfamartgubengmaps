@@ -3,9 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 
-import '../admin/admin_page.dart';
 import '../services/api_service.dart';
-import '../data/places.dart';
 import 'detail_page.dart';
 import 'saved_page.dart';
 
@@ -89,8 +87,6 @@ class _HomePageState
 
         isLoading = false;
       });
-
-      print(e);
     }
   }
 
@@ -184,6 +180,36 @@ class _HomePageState
 
         return distanceA.compareTo(
           distanceB,
+        );
+      });
+    }
+
+    if (filterType == "farthest") {
+
+      filteredPlaces.sort((a, b) {
+
+        double distanceA =
+            calculateDistance(
+
+          (a['lat'] as num)
+              .toDouble(),
+
+          (a['lng'] as num)
+              .toDouble(),
+        );
+
+        double distanceB =
+            calculateDistance(
+
+          (b['lat'] as num)
+              .toDouble(),
+
+          (b['lng'] as num)
+              .toDouble(),
+        );
+
+        return distanceB.compareTo(
+          distanceA,
         );
       });
     }
@@ -288,7 +314,7 @@ class _HomePageState
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ],
@@ -435,56 +461,36 @@ class _HomePageState
                                       context);
                                 },
                               ),
+
+                              ListTile(
+
+                                leading:
+                                    const Icon(
+                                  Icons.social_distance,
+                                ),
+
+                                title:
+                                    const Text(
+                                  "Terjauh",
+                                ),
+
+                                onTap: () {
+
+                                  setState(() {
+
+                                    filterType =
+                                        "farthest";
+                                  });
+
+                                  Navigator.pop(
+                                      context);
+                                },
+                              ),
                             ],
                           );
                         },
                       );
                     },
-                  ),
-                ),
-
-                const SizedBox(
-                    width: 10),
-
-                GestureDetector(
-
-                  onTap: () {
-
-                    Navigator.push(
-
-                      context,
-
-                      MaterialPageRoute(
-
-                        builder: (_) =>
-                            const AdminPage(),
-                      ),
-                    ).then((_) {
-
-                      fetchPlaces();
-                    });
-                  },
-
-                  child: Container(
-
-                    width: 50,
-                    height: 50,
-
-                    decoration:
-                        const BoxDecoration(
-
-                      color:
-                          Colors.white,
-
-                      shape:
-                          BoxShape.circle,
-                    ),
-
-                    child: const Icon(
-
-                      Icons
-                          .admin_panel_settings,
-                    ),
                   ),
                 ),
               ],
@@ -557,7 +563,7 @@ class _HomePageState
 
                             backgroundImage:
                                 AssetImage(
-                              place['photo'],
+                              'assets/images/${place['photo']}.jpg',
                             ),
                           ),
 
@@ -571,36 +577,26 @@ class _HomePageState
                             "${(distance / 1000).toStringAsFixed(1)} km",
                           ),
 
-                          trailing:
-                              IconButton(
+                          onTap: () {
 
-                            icon:
-                                const Icon(
-                              Icons.route,
-                            ),
+                            Navigator.push(
 
-                            onPressed:
-                                () {
+                              context,
 
-                              Navigator.push(
+                              MaterialPageRoute(
 
-                                context,
+                                builder: (_) =>
+                                    DetailPage(
 
-                                MaterialPageRoute(
+                                  place:
+                                      place,
 
-                                  builder: (_) =>
-                                      DetailPage(
-
-                                    place:
-                                        place,
-
-                                    currentLocation:
-                                        currentLocation,
-                                  ),
+                                  currentLocation:
+                                      currentLocation,
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
                         );
                       },
                     ),
