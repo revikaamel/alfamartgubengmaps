@@ -4,8 +4,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../admin/admin_page.dart';
+import '../services/api_service.dart';
 import '../data/places.dart';
-
 import 'detail_page.dart';
 import 'saved_page.dart';
 
@@ -28,6 +28,10 @@ class _HomePageState
 
   String filterType = "default";
 
+  List places = [];
+
+  bool isLoading = true;
+
   Future<void> getLocation() async {
 
     bool serviceEnabled;
@@ -40,7 +44,8 @@ class _HomePageState
     if (!serviceEnabled) return;
 
     permission =
-        await Geolocator.checkPermission();
+        await Geolocator
+            .checkPermission();
 
     if (permission ==
         LocationPermission.denied) {
@@ -63,12 +68,39 @@ class _HomePageState
     });
   }
 
+  Future<void> fetchPlaces() async {
+
+    try {
+
+      final data =
+          await ApiService
+              .getPlaces();
+
+      setState(() {
+
+        places = data;
+
+        isLoading = false;
+      });
+
+    } catch (e) {
+
+      setState(() {
+
+        isLoading = false;
+      });
+
+      print(e);
+    }
+  }
+
   double calculateDistance(
     double lat,
     double lng,
   ) {
 
-    return Geolocator.distanceBetween(
+    return Geolocator
+        .distanceBetween(
 
       currentLocation.latitude,
       currentLocation.longitude,
@@ -84,10 +116,24 @@ class _HomePageState
     super.initState();
 
     getLocation();
+
+    fetchPlaces();
   }
 
   @override
   Widget build(BuildContext context) {
+
+    if (isLoading) {
+
+      return const Scaffold(
+
+        body: Center(
+
+          child:
+              CircularProgressIndicator(),
+        ),
+      );
+    }
 
     List filteredPlaces =
         places.where((place) {
@@ -105,8 +151,10 @@ class _HomePageState
       filteredPlaces.sort(
 
         (a, b) =>
-            b['rating']
-                .compareTo(a['rating']),
+            (b['rating'] as num)
+                .compareTo(
+          a['rating'] as num,
+        ),
       );
     }
 
@@ -116,33 +164,28 @@ class _HomePageState
 
         double distanceA =
             calculateDistance(
-          a['lat'],
-          a['lng'],
+
+          (a['lat'] as num)
+              .toDouble(),
+
+          (a['lng'] as num)
+              .toDouble(),
         );
 
         double distanceB =
             calculateDistance(
-          b['lat'],
-          b['lng'],
+
+          (b['lat'] as num)
+              .toDouble(),
+
+          (b['lng'] as num)
+              .toDouble(),
         );
 
         return distanceA.compareTo(
           distanceB,
         );
       });
-    }
-
-    if (filterType == "reviews") {
-
-      filteredPlaces.sort(
-
-        (a, b) =>
-
-            b['reviews'].length
-                .compareTo(
-              a['reviews'].length,
-            ),
-      );
     }
 
     return Scaffold(
@@ -175,7 +218,8 @@ class _HomePageState
 
                   Marker(
 
-                    point: currentLocation,
+                    point:
+                        currentLocation,
 
                     width: 80,
                     height: 80,
@@ -184,25 +228,34 @@ class _HomePageState
 
                       Icons.my_location,
 
-                      color: Colors.blue,
+                      color:
+                          Colors.blue,
 
                       size: 40,
                     ),
                   ),
 
-                  ...filteredPlaces.map((place) {
+                  ...filteredPlaces.map(
+                      (place) {
 
                     return Marker(
 
                       point: LatLng(
-                        place['lat'],
-                        place['lng'],
+
+                        (place['lat']
+                                as num)
+                            .toDouble(),
+
+                        (place['lng']
+                                as num)
+                            .toDouble(),
                       ),
 
                       width: 80,
                       height: 80,
 
-                      child: GestureDetector(
+                      child:
+                          GestureDetector(
 
                         onTap: () {
 
@@ -228,7 +281,8 @@ class _HomePageState
 
                           Icons.location_on,
 
-                          color: Colors.red,
+                          color:
+                              Colors.red,
 
                           size: 40,
                         ),
@@ -293,13 +347,16 @@ class _HomePageState
                   ),
                 ),
 
-                const SizedBox(width: 10),
+                const SizedBox(
+                    width: 10),
 
                 Container(
 
-                  decoration: BoxDecoration(
+                  decoration:
+                      BoxDecoration(
 
-                    color: Colors.white,
+                    color:
+                        Colors.white,
 
                     borderRadius:
                         BorderRadius
@@ -378,31 +435,6 @@ class _HomePageState
                                       context);
                                 },
                               ),
-
-                              ListTile(
-
-                                leading:
-                                    const Icon(
-                                  Icons.reviews,
-                                ),
-
-                                title:
-                                    const Text(
-                                  "Review Terbanyak",
-                                ),
-
-                                onTap: () {
-
-                                  setState(() {
-
-                                    filterType =
-                                        "reviews";
-                                  });
-
-                                  Navigator.pop(
-                                      context);
-                                },
-                              ),
                             ],
                           );
                         },
@@ -411,7 +443,8 @@ class _HomePageState
                   ),
                 ),
 
-                const SizedBox(width: 10),
+                const SizedBox(
+                    width: 10),
 
                 GestureDetector(
 
@@ -428,7 +461,7 @@ class _HomePageState
                       ),
                     ).then((_) {
 
-                      setState(() {});
+                      fetchPlaces();
                     });
                   },
 
@@ -440,9 +473,11 @@ class _HomePageState
                     decoration:
                         const BoxDecoration(
 
-                      color: Colors.white,
+                      color:
+                          Colors.white,
 
-                      shape: BoxShape.circle,
+                      shape:
+                          BoxShape.circle,
                     ),
 
                     child: const Icon(
@@ -488,22 +523,31 @@ class _HomePageState
 
                   Expanded(
 
-                    child: ListView.builder(
+                    child:
+                        ListView.builder(
 
                       itemCount:
-                          filteredPlaces.length,
+                          filteredPlaces
+                              .length,
 
                       itemBuilder:
-                          (context, index) {
+                          (context,
+                              index) {
 
                         var place =
-                            filteredPlaces[index];
+                            filteredPlaces[
+                                index];
 
                         double distance =
                             calculateDistance(
 
-                          place['lat'],
-                          place['lng'],
+                          (place['lat']
+                                  as num)
+                              .toDouble(),
+
+                          (place['lng']
+                                  as num)
+                              .toDouble(),
                         );
 
                         return ListTile(
@@ -530,11 +574,13 @@ class _HomePageState
                           trailing:
                               IconButton(
 
-                            icon: const Icon(
+                            icon:
+                                const Icon(
                               Icons.route,
                             ),
 
-                            onPressed: () {
+                            onPressed:
+                                () {
 
                               Navigator.push(
 
@@ -545,7 +591,8 @@ class _HomePageState
                                   builder: (_) =>
                                       DetailPage(
 
-                                    place: place,
+                                    place:
+                                        place,
 
                                     currentLocation:
                                         currentLocation,
@@ -562,17 +609,19 @@ class _HomePageState
                   Padding(
 
                     padding:
-                        const EdgeInsets.all(
-                            15),
+                        const EdgeInsets
+                            .all(15),
 
                     child: SizedBox(
 
-                      width: double.infinity,
+                      width:
+                          double.infinity,
 
                       height: 50,
 
                       child:
-                          ElevatedButton.icon(
+                          ElevatedButton
+                              .icon(
 
                         icon: const Icon(
                           Icons.bookmark,
