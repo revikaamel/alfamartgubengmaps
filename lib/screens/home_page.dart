@@ -5,7 +5,6 @@ import 'package:geolocator/geolocator.dart';
 
 import '../admin/admin_page.dart';
 import '../services/api_service.dart';
-import '../data/places.dart';
 import 'detail_page.dart';
 import 'saved_page.dart';
 
@@ -111,26 +110,7 @@ class _HomePageState
 
   String getPhotoPath(String photo) {
 
-    if (photo.contains(".")) {
-      return "assets/images/$photo";
-    }
-
-    List extensions = [
-      ".jpg",
-      ".jpeg",
-      ".png",
-      ".webp"
-    ];
-
-    for (var ext in extensions) {
-
-      String path =
-          "assets/images/$photo$ext";
-
-      return path;
-    }
-
-    return "assets/images/default.png";
+    return "assets/images/$photo";
   }
 
   @override
@@ -162,6 +142,7 @@ class _HomePageState
         places.where((place) {
 
       return place['name']
+          .toString()
           .toLowerCase()
           .contains(
             search.toLowerCase(),
@@ -174,10 +155,17 @@ class _HomePageState
       filteredPlaces.sort(
 
         (a, b) =>
-            (b['rating'] as num)
-                .compareTo(
-          a['rating'] as num,
-        ),
+
+            double.parse(
+              b['rating']
+                  .toString(),
+            ).compareTo(
+
+              double.parse(
+                a['rating']
+                    .toString(),
+              ),
+            ),
       );
     }
 
@@ -188,21 +176,25 @@ class _HomePageState
         double distanceA =
             calculateDistance(
 
-          (a['lat'] as num)
-              .toDouble(),
+          double.parse(
+            a['lat'].toString(),
+          ),
 
-          (a['lng'] as num)
-              .toDouble(),
+          double.parse(
+            a['lng'].toString(),
+          ),
         );
 
         double distanceB =
             calculateDistance(
 
-          (b['lat'] as num)
-              .toDouble(),
+          double.parse(
+            b['lat'].toString(),
+          ),
 
-          (b['lng'] as num)
-              .toDouble(),
+          double.parse(
+            b['lng'].toString(),
+          ),
         );
 
         return distanceA.compareTo(
@@ -218,21 +210,25 @@ class _HomePageState
         double distanceA =
             calculateDistance(
 
-          (a['lat'] as num)
-              .toDouble(),
+          double.parse(
+            a['lat'].toString(),
+          ),
 
-          (a['lng'] as num)
-              .toDouble(),
+          double.parse(
+            a['lng'].toString(),
+          ),
         );
 
         double distanceB =
             calculateDistance(
 
-          (b['lat'] as num)
-              .toDouble(),
+          double.parse(
+            b['lat'].toString(),
+          ),
 
-          (b['lng'] as num)
-              .toDouble(),
+          double.parse(
+            b['lng'].toString(),
+          ),
         );
 
         return distanceB.compareTo(
@@ -295,13 +291,15 @@ class _HomePageState
 
                       point: LatLng(
 
-                        (place['lat']
-                                as num)
-                            .toDouble(),
+                        double.parse(
+                          place['lat']
+                              .toString(),
+                        ),
 
-                        (place['lng']
-                                as num)
-                            .toDouble(),
+                        double.parse(
+                          place['lng']
+                              .toString(),
+                        ),
                       ),
 
                       width: 80,
@@ -441,11 +439,6 @@ class _HomePageState
 
                               ListTile(
 
-                                leading:
-                                    const Icon(
-                                  Icons.star,
-                                ),
-
                                 title:
                                     const Text(
                                   "Rating Tertinggi",
@@ -466,11 +459,6 @@ class _HomePageState
 
                               ListTile(
 
-                                leading:
-                                    const Icon(
-                                  Icons.near_me,
-                                ),
-
                                 title:
                                     const Text(
                                   "Terdekat",
@@ -490,11 +478,6 @@ class _HomePageState
                               ),
 
                               ListTile(
-
-                                leading:
-                                    const Icon(
-                                  Icons.social_distance,
-                                ),
 
                                 title:
                                     const Text(
@@ -518,51 +501,6 @@ class _HomePageState
                         },
                       );
                     },
-                  ),
-                ),
-
-                const SizedBox(
-                    width: 10),
-
-                GestureDetector(
-
-                  onTap: () {
-
-                    Navigator.push(
-
-                      context,
-
-                      MaterialPageRoute(
-
-                        builder: (_) =>
-                            const AdminPage(),
-                      ),
-                    ).then((_) {
-
-                      fetchPlaces();
-                    });
-                  },
-
-                  child: Container(
-
-                    width: 50,
-                    height: 50,
-
-                    decoration:
-                        const BoxDecoration(
-
-                      color:
-                          Colors.white,
-
-                      shape:
-                          BoxShape.circle,
-                    ),
-
-                    child: const Icon(
-
-                      Icons
-                          .admin_panel_settings,
-                    ),
                   ),
                 ),
               ],
@@ -595,142 +533,75 @@ class _HomePageState
                 ),
               ),
 
-              child: Column(
+              child: ListView.builder(
 
-                children: [
+                itemCount:
+                    filteredPlaces.length,
 
-                  Expanded(
+                itemBuilder:
+                    (context, index) {
 
-                    child:
-                        ListView.builder(
+                  var place =
+                      filteredPlaces[index];
 
-                      itemCount:
-                          filteredPlaces
-                              .length,
+                  double distance =
+                      calculateDistance(
 
-                      itemBuilder:
-                          (context,
-                              index) {
-
-                        var place =
-                            filteredPlaces[
-                                index];
-
-                        double distance =
-                            calculateDistance(
-
-                          (place['lat']
-                                  as num)
-                              .toDouble(),
-
-                          (place['lng']
-                                  as num)
-                              .toDouble(),
-                        );
-
-                        return ListTile(
-
-                          leading:
-                              CircleAvatar(
-
-                            backgroundImage:
-                                AssetImage(
-                              getPhotoPath(
-                                place['photo'],
-                              ),
-                            ),
-
-                            onBackgroundImageError:
-                                (_, __) {},
-                          ),
-
-                          title: Text(
-                            place['name'],
-                          ),
-
-                          subtitle: Text(
-
-                            "⭐ ${place['rating']} • "
-                            "${(distance / 1000).toStringAsFixed(1)} km",
-                          ),
-
-                          trailing:
-                              IconButton(
-
-                            icon:
-                                const Icon(
-                              Icons.route,
-                            ),
-
-                            onPressed:
-                                () {
-
-                              Navigator.push(
-
-                                context,
-
-                                MaterialPageRoute(
-
-                                  builder: (_) =>
-                                      DetailPage(
-
-                                    place:
-                                        place,
-
-                                    currentLocation:
-                                        currentLocation,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
+                    double.parse(
+                      place['lat']
+                          .toString(),
                     ),
-                  ),
 
-                  Padding(
+                    double.parse(
+                      place['lng']
+                          .toString(),
+                    ),
+                  );
 
-                    padding:
-                        const EdgeInsets
-                            .all(15),
+                  return ListTile(
 
-                    child: SizedBox(
+                    leading:
+                        CircleAvatar(
 
-                      width:
-                          double.infinity,
-
-                      height: 50,
-
-                      child:
-                          ElevatedButton
-                              .icon(
-
-                        icon: const Icon(
-                          Icons.bookmark,
+                      backgroundImage:
+                          AssetImage(
+                        getPhotoPath(
+                          place['photo'],
                         ),
-
-                        label: const Text(
-                          "Tersimpan",
-                        ),
-
-                        onPressed: () {
-
-                          Navigator.push(
-
-                            context,
-
-                            MaterialPageRoute(
-
-                              builder: (_) =>
-                                  const SavedPage(),
-                            ),
-                          );
-                        },
                       ),
                     ),
-                  )
-                ],
+
+                    title: Text(
+                      place['name'],
+                    ),
+
+                    subtitle: Text(
+
+                      "⭐ ${place['rating']} • "
+                      "${(distance / 1000).toStringAsFixed(1)} km",
+                    ),
+
+                    onTap: () {
+
+                      Navigator.push(
+
+                        context,
+
+                        MaterialPageRoute(
+
+                          builder: (_) =>
+                              DetailPage(
+
+                            place: place,
+
+                            currentLocation:
+                                currentLocation,
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ),
           )
