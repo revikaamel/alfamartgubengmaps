@@ -23,7 +23,7 @@ class DetailPage extends StatefulWidget {
 class _DetailPageState
     extends State<DetailPage> {
 
-  late List reviews;
+  List reviews = [];
 
   late double averageRating;
 
@@ -38,12 +38,55 @@ class _DetailPageState
 
     super.initState();
 
-    reviews =
-        List.from(
-      widget.place['reviews'] ?? [],
-    );
+    loadReviews();
 
     calculateAverageRating();
+  }
+
+  void loadReviews() {
+
+    var rawReviews =
+        widget.place['reviews'];
+
+    if (rawReviews == null ||
+        rawReviews.toString().isEmpty) {
+
+      reviews = [];
+
+      return;
+    }
+
+    if (rawReviews is List) {
+
+      reviews = rawReviews;
+
+    } else {
+
+      List<String> reviewTexts =
+          rawReviews
+              .toString()
+              .split(";");
+
+      reviews =
+          reviewTexts.map((text) {
+
+        return {
+
+          "text": text.trim(),
+
+          "rating": widget.place['rating'],
+        };
+
+      }).toList();
+    }
+  }
+
+  double toDouble(dynamic value) {
+
+    return double.tryParse(
+          value.toString(),
+        ) ??
+        0;
   }
 
   void calculateAverageRating() {
@@ -51,8 +94,9 @@ class _DetailPageState
     if (reviews.isEmpty) {
 
       averageRating =
-          (widget.place['rating'] as num)
-              .toDouble();
+          toDouble(
+        widget.place['rating'],
+      );
 
       return;
     }
@@ -61,9 +105,9 @@ class _DetailPageState
 
     for (var review in reviews) {
 
-      total +=
-          (review['rating'] as num)
-              .toDouble();
+      total += toDouble(
+        review['rating'],
+      );
     }
 
     averageRating =
@@ -101,8 +145,6 @@ class _DetailPageState
           widget.place,
         );
       }
-
-      print(savedPlaces);
     });
   }
 
@@ -137,25 +179,7 @@ class _DetailPageState
 
   String getPhotoPath(String photo) {
 
-    if (photo.contains(".")) {
-
-      return "assets/images/$photo";
-    }
-
-    List extensions = [
-
-      ".jpg",
-      ".jpeg",
-      ".png",
-      ".webp"
-    ];
-
-    for (var ext in extensions) {
-
-      return "assets/images/$photo$ext";
-    }
-
-    return "assets/images/default.png";
+    return "assets/images/$photo";
   }
 
   @override
@@ -166,7 +190,10 @@ class _DetailPageState
       appBar: AppBar(
 
         title:
-            Text(widget.place['name']),
+            Text(
+          widget.place['name']
+              .toString(),
+        ),
 
         actions: [
 
@@ -198,7 +225,8 @@ class _DetailPageState
             Image.asset(
 
               getPhotoPath(
-                widget.place['photo'],
+                widget.place['photo']
+                    .toString(),
               ),
 
               width: double.infinity,
@@ -208,17 +236,21 @@ class _DetailPageState
               fit: BoxFit.cover,
 
               errorBuilder:
-                  (context,
-                      error,
-                      stackTrace) {
+                  (
+                context,
+                error,
+                stackTrace,
+              ) {
 
                 return Container(
 
-                  width: double.infinity,
+                  width:
+                      double.infinity,
 
                   height: 250,
 
-                  color: Colors.grey[300],
+                  color:
+                      Colors.grey[300],
 
                   child: const Icon(
 
@@ -233,18 +265,22 @@ class _DetailPageState
             Padding(
 
               padding:
-                  const EdgeInsets.all(16),
+                  const EdgeInsets.all(
+                16,
+              ),
 
               child: Column(
 
                 crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                    CrossAxisAlignment
+                        .start,
 
                 children: [
 
                   Text(
 
-                    widget.place['name'],
+                    widget.place['name']
+                        .toString(),
 
                     style:
                         const TextStyle(
@@ -268,7 +304,8 @@ class _DetailPageState
 
                         Icons.star,
 
-                        color: Colors.orange,
+                        color:
+                            Colors.orange,
                       ),
 
                       const SizedBox(
@@ -278,7 +315,8 @@ class _DetailPageState
                       Text(
 
                         averageRating
-                            .toStringAsFixed(1),
+                            .toStringAsFixed(
+                                1),
 
                         style:
                             const TextStyle(
@@ -295,7 +333,8 @@ class _DetailPageState
 
                   Text(
 
-                    widget.place['address'] ??
+                    widget.place['address']
+                            ?.toString() ??
                         "Alamat tidak tersedia",
 
                     style:
@@ -311,7 +350,8 @@ class _DetailPageState
 
                   SizedBox(
 
-                    width: double.infinity,
+                    width:
+                        double.infinity,
 
                     height: 50,
 
@@ -357,8 +397,7 @@ class _DetailPageState
 
                     "Ulasan",
 
-                    style:
-                        TextStyle(
+                    style: TextStyle(
 
                       fontSize: 20,
 
@@ -390,12 +429,14 @@ class _DetailPageState
 
                         child: ListTile(
 
-                          leading: const Icon(
+                          leading:
+                              const Icon(
                             Icons.person,
                           ),
 
                           title: Text(
-                            review['text'],
+                            review['text']
+                                .toString(),
                           ),
 
                           subtitle: Text(
@@ -411,7 +452,8 @@ class _DetailPageState
 
                   SizedBox(
 
-                    width: double.infinity,
+                    width:
+                        double.infinity,
 
                     height: 50,
 
@@ -436,14 +478,16 @@ class _DetailPageState
 
                             return AlertDialog(
 
-                              title: const Text(
+                              title:
+                                  const Text(
                                 "Tambah Ulasan",
                               ),
 
                               content: Column(
 
                                 mainAxisSize:
-                                    MainAxisSize.min,
+                                    MainAxisSize
+                                        .min,
 
                                 children: [
 
@@ -468,16 +512,16 @@ class _DetailPageState
 
                                     value:
                                         userRating == 0
-
                                             ? null
-
                                             : userRating,
 
-                                    hint: const Text(
+                                    hint:
+                                        const Text(
                                       "Pilih Rating",
                                     ),
 
-                                    isExpanded: true,
+                                    isExpanded:
+                                        true,
 
                                     items: [
 
@@ -494,13 +538,15 @@ class _DetailPageState
                                         value:
                                             e.toDouble(),
 
-                                        child: Text(
+                                        child:
+                                            Text(
                                           "$e ⭐",
                                         ),
                                       );
                                     }).toList(),
 
-                                    onChanged: (value) {
+                                    onChanged:
+                                        (value) {
 
                                       setState(() {
 
@@ -522,7 +568,8 @@ class _DetailPageState
                                         context);
                                   },
 
-                                  child: const Text(
+                                  child:
+                                      const Text(
                                     "Batal",
                                   ),
                                 ),
@@ -532,7 +579,8 @@ class _DetailPageState
                                   onPressed:
                                       addReview,
 
-                                  child: const Text(
+                                  child:
+                                      const Text(
                                     "Simpan",
                                   ),
                                 ),
