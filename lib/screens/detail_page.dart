@@ -25,13 +25,20 @@ class _DetailPageState
 
   List reviews = [];
 
-  late double averageRating;
+  double averageRating = 0;
 
   double userRating = 0;
 
   final TextEditingController
       reviewController =
       TextEditingController();
+
+  double toDouble(dynamic value) {
+
+    return double.tryParse(
+      value.toString(),
+    ) ?? 0;
+  }
 
   @override
   void initState() {
@@ -48,8 +55,7 @@ class _DetailPageState
     var rawReviews =
         widget.place['reviews'];
 
-    if (rawReviews == null ||
-        rawReviews.toString().isEmpty) {
+    if (rawReviews == null) {
 
       reviews = [];
 
@@ -58,7 +64,7 @@ class _DetailPageState
 
     if (rawReviews is List) {
 
-      reviews = rawReviews;
+      reviews = List.from(rawReviews);
 
     } else {
 
@@ -74,19 +80,14 @@ class _DetailPageState
 
           "text": text.trim(),
 
-          "rating": widget.place['rating'],
+          "rating":
+              toDouble(
+                widget.place['rating'],
+              ),
         };
 
       }).toList();
     }
-  }
-
-  double toDouble(dynamic value) {
-
-    return double.tryParse(
-          value.toString(),
-        ) ??
-        0;
   }
 
   void calculateAverageRating() {
@@ -105,47 +106,14 @@ class _DetailPageState
 
     for (var review in reviews) {
 
-      total += toDouble(
+      total +=
+          toDouble(
         review['rating'],
       );
     }
 
     averageRating =
         total / reviews.length;
-  }
-
-  bool isSaved() {
-
-    return savedPlaces.any(
-
-      (item) =>
-
-          item['name'] ==
-          widget.place['name'],
-    );
-  }
-
-  void toggleSave() {
-
-    setState(() {
-
-      if (isSaved()) {
-
-        savedPlaces.removeWhere(
-
-          (item) =>
-
-              item['name'] ==
-              widget.place['name'],
-        );
-
-      } else {
-
-        savedPlaces.add(
-          widget.place,
-        );
-      }
-    });
   }
 
   void addReview() {
@@ -160,14 +128,20 @@ class _DetailPageState
 
       reviews.add({
 
-        'text':
+        "text":
             reviewController.text,
 
-        'rating':
+        "rating":
             userRating,
       });
 
+      widget.place['reviews'] =
+          reviews;
+
       calculateAverageRating();
+
+      widget.place['rating'] =
+          averageRating;
     });
 
     reviewController.clear();
@@ -177,11 +151,6 @@ class _DetailPageState
     Navigator.pop(context);
   }
 
-  String getPhotoPath(String photo) {
-
-    return "assets/images/$photo";
-  }
-
   @override
   Widget build(BuildContext context) {
 
@@ -189,31 +158,16 @@ class _DetailPageState
 
       appBar: AppBar(
 
-        title:
-            Text(
+        title: Text(
           widget.place['name']
               .toString(),
         ),
-
-        actions: [
-
-          IconButton(
-
-            icon: Icon(
-
-              isSaved()
-
-                  ? Icons.bookmark
-
-                  : Icons.bookmark_border,
-            ),
-
-            onPressed: toggleSave,
-          ),
-        ],
       ),
 
-      body: SingleChildScrollView(
+      body: Padding(
+
+        padding:
+            const EdgeInsets.all(16),
 
         child: Column(
 
@@ -222,376 +176,201 @@ class _DetailPageState
 
           children: [
 
-            Image.asset(
+            Text(
 
-              getPhotoPath(
-                widget.place['photo']
-                    .toString(),
+              widget.place['name']
+                  .toString(),
+
+              style:
+                  const TextStyle(
+
+                fontSize: 24,
+
+                fontWeight:
+                    FontWeight.bold,
               ),
+            ),
 
-              width: double.infinity,
+            const SizedBox(height: 10),
 
-              height: 250,
+            Text(
+              "⭐ ${averageRating.toStringAsFixed(1)}",
+            ),
 
-              fit: BoxFit.cover,
+            const SizedBox(height: 10),
 
-              errorBuilder:
-                  (
-                context,
-                error,
-                stackTrace,
-              ) {
+            Text(
+              widget.place['address']
+                  .toString(),
+            ),
 
-                return Container(
+            const SizedBox(height: 20),
 
-                  width:
-                      double.infinity,
+            ElevatedButton(
 
-                  height: 250,
+              onPressed: () {
 
-                  color:
-                      Colors.grey[300],
+                Navigator.push(
 
-                  child: const Icon(
+                  context,
 
-                    Icons.image,
+                  MaterialPageRoute(
 
-                    size: 80,
+                    builder: (_) =>
+                        RoutePage(
+
+                      place:
+                          widget.place,
+
+                      currentLocation:
+                          widget.currentLocation,
+                    ),
                   ),
                 );
               },
+
+              child: const Text(
+                "Lihat Rute",
+              ),
             ),
 
-            Padding(
+            const SizedBox(height: 20),
 
-              padding:
-                  const EdgeInsets.all(
-                16,
+            const Text(
+
+              "Ulasan",
+
+              style: TextStyle(
+
+                fontSize: 20,
+
+                fontWeight:
+                    FontWeight.bold,
               ),
+            ),
 
-              child: Column(
+            const SizedBox(height: 10),
 
-                crossAxisAlignment:
-                    CrossAxisAlignment
-                        .start,
+            Expanded(
 
-                children: [
+              child: ListView.builder(
 
-                  Text(
+                itemCount:
+                    reviews.length,
 
-                    widget.place['name']
-                        .toString(),
+                itemBuilder:
+                    (context, index) {
 
-                    style:
-                        const TextStyle(
+                  var review =
+                      reviews[index];
 
-                      fontSize: 24,
+                  return Card(
 
-                      fontWeight:
-                          FontWeight.bold,
+                    child: ListTile(
+
+                      title: Text(
+                        review['text']
+                            .toString(),
+                      ),
+
+                      subtitle: Text(
+                        "⭐ ${review['rating']}",
+                      ),
                     ),
-                  ),
+                  );
+                },
+              ),
+            ),
 
-                  const SizedBox(
-                    height: 10,
-                  ),
+            ElevatedButton(
 
-                  Row(
+              onPressed: () {
 
-                    children: [
+                showDialog(
 
-                      const Icon(
+                  context: context,
 
-                        Icons.star,
+                  builder: (_) {
 
-                        color:
-                            Colors.orange,
-                      ),
+                    return AlertDialog(
 
-                      const SizedBox(
-                        width: 5,
-                      ),
-
-                      Text(
-
-                        averageRating
-                            .toStringAsFixed(
-                                1),
-
-                        style:
-                            const TextStyle(
-
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(
-                    height: 10,
-                  ),
-
-                  Text(
-
-                    widget.place['address']
-                            ?.toString() ??
-                        "Alamat tidak tersedia",
-
-                    style:
-                        const TextStyle(
-
-                      fontSize: 16,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 20,
-                  ),
-
-                  SizedBox(
-
-                    width:
-                        double.infinity,
-
-                    height: 50,
-
-                    child:
-                        ElevatedButton.icon(
-
-                      icon: const Icon(
-                        Icons.route,
-                      ),
-
-                      label: const Text(
-                        "Lihat Rute",
-                      ),
-
-                      onPressed: () {
-
-                        Navigator.push(
-
-                          context,
-
-                          MaterialPageRoute(
-
-                            builder: (_) =>
-                                RoutePage(
-
-                              place:
-                                  widget.place,
-
-                              currentLocation:
-                                  widget.currentLocation,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 25,
-                  ),
-
-                  const Text(
-
-                    "Ulasan",
-
-                    style: TextStyle(
-
-                      fontSize: 20,
-
-                      fontWeight:
-                          FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(
-                    height: 10,
-                  ),
-
-                  if (reviews.isEmpty)
-
-                    const Text(
-                      "Belum ada ulasan",
-                    )
-
-                  else
-
-                    ...reviews.map((review) {
-
-                      return Card(
-
-                        margin:
-                            const EdgeInsets.only(
-                          bottom: 10,
-                        ),
-
-                        child: ListTile(
-
-                          leading:
-                              const Icon(
-                            Icons.person,
-                          ),
-
-                          title: Text(
-                            review['text']
-                                .toString(),
-                          ),
-
-                          subtitle: Text(
-                            "⭐ ${review['rating']}",
-                          ),
-                        ),
-                      );
-                    }),
-
-                  const SizedBox(
-                    height: 20,
-                  ),
-
-                  SizedBox(
-
-                    width:
-                        double.infinity,
-
-                    height: 50,
-
-                    child:
-                        ElevatedButton.icon(
-
-                      icon: const Icon(
-                        Icons.rate_review,
-                      ),
-
-                      label: const Text(
+                      title: const Text(
                         "Tambah Ulasan",
                       ),
 
-                      onPressed: () {
+                      content: Column(
 
-                        showDialog(
+                        mainAxisSize:
+                            MainAxisSize.min,
 
-                          context: context,
+                        children: [
 
-                          builder: (_) {
+                          TextField(
 
-                            return AlertDialog(
+                            controller:
+                                reviewController,
+                          ),
 
-                              title:
-                                  const Text(
-                                "Tambah Ulasan",
-                              ),
+                          DropdownButton<double>(
 
-                              content: Column(
+                            value:
+                                userRating == 0
+                                    ? null
+                                    : userRating,
 
-                                mainAxisSize:
-                                    MainAxisSize
-                                        .min,
+                            items: [
 
-                                children: [
+                              1,
+                              2,
+                              3,
+                              4,
+                              5
 
-                                  TextField(
+                            ].map((e) {
 
-                                    controller:
-                                        reviewController,
+                              return DropdownMenuItem(
 
-                                    decoration:
-                                        const InputDecoration(
+                                value:
+                                    e.toDouble(),
 
-                                      hintText:
-                                          "Tulis ulasan",
-                                    ),
-                                  ),
+                                child:
+                                    Text("$e"),
+                              );
+                            }).toList(),
 
-                                  const SizedBox(
-                                    height: 15,
-                                  ),
+                            onChanged:
+                                (value) {
 
-                                  DropdownButton<double>(
+                              setState(() {
 
-                                    value:
-                                        userRating == 0
-                                            ? null
-                                            : userRating,
+                                userRating =
+                                    value!;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
 
-                                    hint:
-                                        const Text(
-                                      "Pilih Rating",
-                                    ),
+                      actions: [
 
-                                    isExpanded:
-                                        true,
+                        ElevatedButton(
 
-                                    items: [
+                          onPressed:
+                              addReview,
 
-                                      1,
-                                      2,
-                                      3,
-                                      4,
-                                      5
+                          child:
+                              const Text(
+                            "Simpan",
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
 
-                                    ].map((e) {
-
-                                      return DropdownMenuItem(
-
-                                        value:
-                                            e.toDouble(),
-
-                                        child:
-                                            Text(
-                                          "$e ⭐",
-                                        ),
-                                      );
-                                    }).toList(),
-
-                                    onChanged:
-                                        (value) {
-
-                                      setState(() {
-
-                                        userRating =
-                                            value!;
-                                      });
-                                    },
-                                  ),
-                                ],
-                              ),
-
-                              actions: [
-
-                                TextButton(
-
-                                  onPressed: () {
-
-                                    Navigator.pop(
-                                        context);
-                                  },
-
-                                  child:
-                                      const Text(
-                                    "Batal",
-                                  ),
-                                ),
-
-                                ElevatedButton(
-
-                                  onPressed:
-                                      addReview,
-
-                                  child:
-                                      const Text(
-                                    "Simpan",
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ],
+              child: const Text(
+                "Tambah Ulasan",
               ),
             ),
           ],

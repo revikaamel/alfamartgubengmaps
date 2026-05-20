@@ -5,11 +5,11 @@ import 'package:geolocator/geolocator.dart';
 
 import '../admin/admin_page.dart';
 import '../services/api_service.dart';
+import '../data/places.dart';
 import 'detail_page.dart';
 import 'saved_page.dart';
 
 class HomePage extends StatefulWidget {
-
   const HomePage({super.key});
 
   @override
@@ -26,8 +26,6 @@ class _HomePageState
   String search = "";
 
   String filterType = "default";
-
-  List places = [];
 
   bool isLoading = true;
 
@@ -89,9 +87,11 @@ class _HomePageState
           await ApiService
               .getPlaces();
 
-      setState(() {
+      places.clear();
 
-        places = data;
+      places.addAll(data);
+
+      setState(() {
 
         isLoading = false;
       });
@@ -316,7 +316,10 @@ class _HomePageState
                                     currentLocation,
                               ),
                             ),
-                          );
+                          ).then((_) {
+
+                            setState(() {});
+                          });
                         },
 
                         child: const Icon(
@@ -430,11 +433,6 @@ class _HomePageState
 
                               ListTile(
 
-                                leading:
-                                    const Icon(
-                                  Icons.star,
-                                ),
-
                                 title:
                                     const Text(
                                   "Rating Tertinggi",
@@ -455,11 +453,6 @@ class _HomePageState
 
                               ListTile(
 
-                                leading:
-                                    const Icon(
-                                  Icons.near_me,
-                                ),
-
                                 title:
                                     const Text(
                                   "Terdekat",
@@ -479,11 +472,6 @@ class _HomePageState
                               ),
 
                               ListTile(
-
-                                leading:
-                                    const Icon(
-                                  Icons.social_distance,
-                                ),
 
                                 title:
                                     const Text(
@@ -528,7 +516,7 @@ class _HomePageState
                       ),
                     ).then((_) {
 
-                      fetchPlaces();
+                      setState(() {});
                     });
                   },
 
@@ -634,7 +622,7 @@ class _HomePageState
 
                           subtitle: Text(
 
-                            "⭐ ${place['rating']} • "
+                            "⭐ ${toDouble(place['rating']).toStringAsFixed(1)} • "
                             "${(distance / 1000).toStringAsFixed(1)} km",
                           ),
 
@@ -665,7 +653,10 @@ class _HomePageState
                                         currentLocation,
                                   ),
                                 ),
-                              );
+                              ).then((_) {
+
+                                setState(() {});
+                              });
                             },
                           ),
                         );
