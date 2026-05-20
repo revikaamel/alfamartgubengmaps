@@ -31,6 +31,20 @@ class _HomePageState
 
   bool isLoading = true;
 
+  double toDouble(dynamic value) {
+
+    try {
+
+      return double.parse(
+        value.toString(),
+      );
+
+    } catch (e) {
+
+      return 0;
+    }
+  }
+
   Future<void> getLocation() async {
 
     bool serviceEnabled;
@@ -93,13 +107,6 @@ class _HomePageState
     }
   }
 
-  double toDouble(dynamic value) {
-
-    return double.tryParse(
-      value.toString(),
-    ) ?? 0;
-  }
-
   double calculateDistance(
     double lat,
     double lng,
@@ -118,12 +125,7 @@ class _HomePageState
 
   String getPhotoPath(String photo) {
 
-    if (photo.contains(".")) {
-
-      return "assets/images/$photo";
-    }
-
-    return "assets/images/$photo.png";
+    return "assets/images/$photo";
   }
 
   @override
@@ -169,10 +171,13 @@ class _HomePageState
 
         (a, b) =>
 
-            toDouble(b['rating'])
-                .compareTo(
+            toDouble(
+              b['rating'],
+            ).compareTo(
 
-              toDouble(a['rating']),
+              toDouble(
+                a['rating'],
+              ),
             ),
       );
     }
@@ -280,10 +285,12 @@ class _HomePageState
                       point: LatLng(
 
                         toDouble(
-                            place['lat']),
+                          place['lat'],
+                        ),
 
                         toDouble(
-                            place['lng']),
+                          place['lng'],
+                        ),
                       ),
 
                       width: 80,
@@ -423,6 +430,11 @@ class _HomePageState
 
                               ListTile(
 
+                                leading:
+                                    const Icon(
+                                  Icons.star,
+                                ),
+
                                 title:
                                     const Text(
                                   "Rating Tertinggi",
@@ -443,6 +455,11 @@ class _HomePageState
 
                               ListTile(
 
+                                leading:
+                                    const Icon(
+                                  Icons.near_me,
+                                ),
+
                                 title:
                                     const Text(
                                   "Terdekat",
@@ -462,6 +479,11 @@ class _HomePageState
                               ),
 
                               ListTile(
+
+                                leading:
+                                    const Icon(
+                                  Icons.social_distance,
+                                ),
 
                                 title:
                                     const Text(
@@ -487,9 +509,215 @@ class _HomePageState
                     },
                   ),
                 ),
+
+                const SizedBox(
+                    width: 10),
+
+                GestureDetector(
+
+                  onTap: () {
+
+                    Navigator.push(
+
+                      context,
+
+                      MaterialPageRoute(
+
+                        builder: (_) =>
+                            const AdminPage(),
+                      ),
+                    ).then((_) {
+
+                      fetchPlaces();
+                    });
+                  },
+
+                  child: Container(
+
+                    width: 50,
+                    height: 50,
+
+                    decoration:
+                        const BoxDecoration(
+
+                      color:
+                          Colors.white,
+
+                      shape:
+                          BoxShape.circle,
+                    ),
+
+                    child: const Icon(
+
+                      Icons
+                          .admin_panel_settings,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
+
+          Positioned(
+
+            bottom: 0,
+            left: 0,
+            right: 0,
+
+            child: Container(
+
+              height: 320,
+
+              decoration:
+                  const BoxDecoration(
+
+                color: Colors.white,
+
+                borderRadius:
+                    BorderRadius.only(
+
+                  topLeft:
+                      Radius.circular(25),
+
+                  topRight:
+                      Radius.circular(25),
+                ),
+              ),
+
+              child: Column(
+
+                children: [
+
+                  Expanded(
+
+                    child:
+                        ListView.builder(
+
+                      itemCount:
+                          filteredPlaces
+                              .length,
+
+                      itemBuilder:
+                          (context,
+                              index) {
+
+                        var place =
+                            filteredPlaces[
+                                index];
+
+                        double distance =
+                            calculateDistance(
+
+                          toDouble(
+                              place['lat']),
+
+                          toDouble(
+                              place['lng']),
+                        );
+
+                        return ListTile(
+
+                          leading:
+                              CircleAvatar(
+
+                            backgroundImage:
+                                AssetImage(
+                              getPhotoPath(
+                                place['photo'],
+                              ),
+                            ),
+                          ),
+
+                          title: Text(
+                            place['name'],
+                          ),
+
+                          subtitle: Text(
+
+                            "⭐ ${place['rating']} • "
+                            "${(distance / 1000).toStringAsFixed(1)} km",
+                          ),
+
+                          trailing:
+                              IconButton(
+
+                            icon:
+                                const Icon(
+                              Icons.route,
+                            ),
+
+                            onPressed:
+                                () {
+
+                              Navigator.push(
+
+                                context,
+
+                                MaterialPageRoute(
+
+                                  builder: (_) =>
+                                      DetailPage(
+
+                                    place:
+                                        place,
+
+                                    currentLocation:
+                                        currentLocation,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  Padding(
+
+                    padding:
+                        const EdgeInsets
+                            .all(15),
+
+                    child: SizedBox(
+
+                      width:
+                          double.infinity,
+
+                      height: 50,
+
+                      child:
+                          ElevatedButton
+                              .icon(
+
+                        icon: const Icon(
+                          Icons.bookmark,
+                        ),
+
+                        label: const Text(
+                          "Tersimpan",
+                        ),
+
+                        onPressed: () {
+
+                          Navigator.push(
+
+                            context,
+
+                            MaterialPageRoute(
+
+                              builder: (_) =>
+                                  const SavedPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  )
+                ],
+              ),
+            ),
+          )
         ],
       ),
     );
