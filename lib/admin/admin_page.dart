@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../data/places.dart';
+import 'add_place_page.dart';
+import 'edit_place_page.dart';
 
 class AdminPage extends StatefulWidget {
 
@@ -14,6 +16,17 @@ class AdminPage extends StatefulWidget {
 class _AdminPageState
     extends State<AdminPage> {
 
+  String getPhotoPath(String photo) {
+
+    if (photo.contains(
+        "assets/images/")) {
+
+      return photo;
+    }
+
+    return "assets/images/$photo";
+  }
+
   @override
   Widget build(BuildContext context) {
 
@@ -21,56 +34,162 @@ class _AdminPageState
 
       appBar: AppBar(
 
-        title:
-            const Text(
+        title: const Text(
           "Admin Direktori",
         ),
       ),
 
-      body: ListView.builder(
+      floatingActionButton:
+          FloatingActionButton(
 
-        itemCount: places.length,
+        child: const Icon(
+          Icons.add,
+        ),
 
-        itemBuilder:
-            (context, index) {
+        onPressed: () async {
 
-          var place =
-              places[index];
+          await Navigator.push(
 
-          return Card(
+            context,
 
-            margin:
-                const EdgeInsets.all(
-                    10),
+            MaterialPageRoute(
 
-            child: ListTile(
-
-              leading:
-                  CircleAvatar(
-
-                backgroundImage:
-                    AssetImage(
-                  "assets/images/${place['photo']}",
-                ),
-              ),
-
-              title: Text(
-                place['name']
-                    .toString(),
-              ),
-
-              subtitle: Text(
-                place['address']
-                    .toString(),
-              ),
-
-              trailing: Text(
-                "⭐ ${place['rating']}",
-              ),
+              builder: (_) =>
+                  const AddPlacePage(),
             ),
           );
+
+          setState(() {});
         },
       ),
+
+      body: places.isEmpty
+
+          ? const Center(
+
+              child: Text(
+                "Belum ada data",
+              ),
+            )
+
+          : ListView.builder(
+
+              itemCount:
+                  places.length,
+
+              itemBuilder:
+                  (context, index) {
+
+                var place =
+                    places[index];
+
+                return Card(
+
+                  margin:
+                      const EdgeInsets
+                          .all(10),
+
+                  child: ListTile(
+
+                    leading:
+                        CircleAvatar(
+
+                      backgroundImage:
+                          AssetImage(
+
+                        getPhotoPath(
+
+                          place['photo']
+                              .toString(),
+                        ),
+                      ),
+                    ),
+
+                    title: Text(
+
+                      place['name']
+                          .toString(),
+                    ),
+
+                    subtitle: Text(
+
+                      place['address']
+                              ?.toString() ??
+                          "-",
+                    ),
+
+                    trailing: Row(
+
+                      mainAxisSize:
+                          MainAxisSize
+                              .min,
+
+                      children: [
+
+                        IconButton(
+
+                          icon:
+                              const Icon(
+
+                            Icons.edit,
+
+                            color:
+                                Colors
+                                    .blue,
+                          ),
+
+                          onPressed:
+                              () async {
+
+                            await Navigator
+                                .push(
+
+                              context,
+
+                              MaterialPageRoute(
+
+                                builder: (_) =>
+                                    EditPlacePage(
+
+                                  place:
+                                      place,
+                                ),
+                              ),
+                            );
+
+                            setState(
+                                () {});
+                          },
+                        ),
+
+                        IconButton(
+
+                          icon:
+                              const Icon(
+
+                            Icons.delete,
+
+                            color:
+                                Colors
+                                    .red,
+                          ),
+
+                          onPressed:
+                              () {
+
+                            setState(() {
+
+                              places.removeAt(
+                                  index);
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
