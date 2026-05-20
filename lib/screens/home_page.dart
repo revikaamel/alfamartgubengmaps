@@ -9,6 +9,7 @@ import 'detail_page.dart';
 import 'saved_page.dart';
 
 class HomePage extends StatefulWidget {
+
   const HomePage({super.key});
 
   @override
@@ -83,13 +84,20 @@ class _HomePageState
 
     } catch (e) {
 
+      print(e);
+
       setState(() {
 
         isLoading = false;
       });
-
-      print(e);
     }
+  }
+
+  double toDouble(dynamic value) {
+
+    return double.tryParse(
+      value.toString(),
+    ) ?? 0;
   }
 
   double calculateDistance(
@@ -110,7 +118,12 @@ class _HomePageState
 
   String getPhotoPath(String photo) {
 
-    return "assets/images/$photo";
+    if (photo.contains(".")) {
+
+      return "assets/images/$photo";
+    }
+
+    return "assets/images/$photo.png";
   }
 
   @override
@@ -156,15 +169,10 @@ class _HomePageState
 
         (a, b) =>
 
-            double.parse(
-              b['rating']
-                  .toString(),
-            ).compareTo(
+            toDouble(b['rating'])
+                .compareTo(
 
-              double.parse(
-                a['rating']
-                    .toString(),
-              ),
+              toDouble(a['rating']),
             ),
       );
     }
@@ -176,25 +184,15 @@ class _HomePageState
         double distanceA =
             calculateDistance(
 
-          double.parse(
-            a['lat'].toString(),
-          ),
-
-          double.parse(
-            a['lng'].toString(),
-          ),
+          toDouble(a['lat']),
+          toDouble(a['lng']),
         );
 
         double distanceB =
             calculateDistance(
 
-          double.parse(
-            b['lat'].toString(),
-          ),
-
-          double.parse(
-            b['lng'].toString(),
-          ),
+          toDouble(b['lat']),
+          toDouble(b['lng']),
         );
 
         return distanceA.compareTo(
@@ -210,25 +208,15 @@ class _HomePageState
         double distanceA =
             calculateDistance(
 
-          double.parse(
-            a['lat'].toString(),
-          ),
-
-          double.parse(
-            a['lng'].toString(),
-          ),
+          toDouble(a['lat']),
+          toDouble(a['lng']),
         );
 
         double distanceB =
             calculateDistance(
 
-          double.parse(
-            b['lat'].toString(),
-          ),
-
-          double.parse(
-            b['lng'].toString(),
-          ),
+          toDouble(b['lat']),
+          toDouble(b['lng']),
         );
 
         return distanceB.compareTo(
@@ -291,15 +279,11 @@ class _HomePageState
 
                       point: LatLng(
 
-                        double.parse(
-                          place['lat']
-                              .toString(),
-                        ),
+                        toDouble(
+                            place['lat']),
 
-                        double.parse(
-                          place['lng']
-                              .toString(),
-                        ),
+                        toDouble(
+                            place['lng']),
                       ),
 
                       width: 80,
@@ -506,105 +490,6 @@ class _HomePageState
               ],
             ),
           ),
-
-          Positioned(
-
-            bottom: 0,
-            left: 0,
-            right: 0,
-
-            child: Container(
-
-              height: 320,
-
-              decoration:
-                  const BoxDecoration(
-
-                color: Colors.white,
-
-                borderRadius:
-                    BorderRadius.only(
-
-                  topLeft:
-                      Radius.circular(25),
-
-                  topRight:
-                      Radius.circular(25),
-                ),
-              ),
-
-              child: ListView.builder(
-
-                itemCount:
-                    filteredPlaces.length,
-
-                itemBuilder:
-                    (context, index) {
-
-                  var place =
-                      filteredPlaces[index];
-
-                  double distance =
-                      calculateDistance(
-
-                    double.parse(
-                      place['lat']
-                          .toString(),
-                    ),
-
-                    double.parse(
-                      place['lng']
-                          .toString(),
-                    ),
-                  );
-
-                  return ListTile(
-
-                    leading:
-                        CircleAvatar(
-
-                      backgroundImage:
-                          AssetImage(
-                        getPhotoPath(
-                          place['photo'],
-                        ),
-                      ),
-                    ),
-
-                    title: Text(
-                      place['name'],
-                    ),
-
-                    subtitle: Text(
-
-                      "⭐ ${place['rating']} • "
-                      "${(distance / 1000).toStringAsFixed(1)} km",
-                    ),
-
-                    onTap: () {
-
-                      Navigator.push(
-
-                        context,
-
-                        MaterialPageRoute(
-
-                          builder: (_) =>
-                              DetailPage(
-
-                            place: place,
-
-                            currentLocation:
-                                currentLocation,
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          )
         ],
       ),
     );
