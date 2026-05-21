@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/places.dart';
 
@@ -26,8 +29,32 @@ class _AddPlacePageState
   final lngController =
       TextEditingController();
 
-  final photoController =
-      TextEditingController();
+  File? selectedImage;
+
+  Future<void> pickImage() async {
+
+    final picker = ImagePicker();
+
+    final pickedFile =
+        await picker.pickImage(
+
+      source: ImageSource.gallery,
+    );
+
+    if (pickedFile != null) {
+
+      setState(() {
+
+        selectedImage =
+            File(pickedFile.path);
+      });
+    }
+  }
+
+  double toDouble(String value) {
+
+    return double.tryParse(value) ?? 0;
+  }
 
   void savePlace() {
 
@@ -35,18 +62,29 @@ class _AddPlacePageState
 
       "id": places.length + 1,
 
-      "name": nameController.text,
+      "name":
+          nameController.text,
 
       "address":
           addressController.text,
 
       "lat":
-          double.parse(latController.text),
+          toDouble(
+        latController.text,
+      ),
 
       "lng":
-          double.parse(lngController.text),
+          toDouble(
+        lngController.text,
+      ),
 
-      "photo": photoController.text,
+      "photo":
+
+          selectedImage != null
+
+              ? selectedImage!.path
+
+              : "",
 
       "rating": 0.0,
 
@@ -57,14 +95,16 @@ class _AddPlacePageState
   }
 
   Widget buildField(
-      String label,
-      TextEditingController controller,
-      ) {
+    String label,
+    TextEditingController controller,
+  ) {
 
     return Padding(
 
       padding:
-          const EdgeInsets.only(bottom: 15),
+          const EdgeInsets.only(
+        bottom: 15,
+      ),
 
       child: TextField(
 
@@ -74,9 +114,13 @@ class _AddPlacePageState
 
           labelText: label,
 
-          border: OutlineInputBorder(
+          border:
+              OutlineInputBorder(
+
             borderRadius:
-                BorderRadius.circular(15),
+                BorderRadius.circular(
+              15,
+            ),
           ),
         ),
       ),
@@ -89,11 +133,13 @@ class _AddPlacePageState
     return Scaffold(
 
       appBar: AppBar(
-        title:
-            const Text("Tambah Tempat"),
+
+        title: const Text(
+          "Tambah Tempat",
+        ),
       ),
 
-      body: Padding(
+      body: SingleChildScrollView(
 
         padding:
             const EdgeInsets.all(20),
@@ -103,24 +149,97 @@ class _AddPlacePageState
           children: [
 
             buildField(
-                "Nama Tempat",
-                nameController),
+              "Nama Tempat",
+              nameController,
+            ),
 
             buildField(
-                "Alamat",
-                addressController),
+              "Alamat",
+              addressController,
+            ),
 
             buildField(
-                "Latitude",
-                latController),
+              "Latitude",
+              latController,
+            ),
 
             buildField(
-                "Longitude",
-                lngController),
+              "Longitude",
+              lngController,
+            ),
 
-            buildField(
-                "Photo Asset",
-                photoController),
+            const SizedBox(
+              height: 10,
+            ),
+
+            GestureDetector(
+
+              onTap: pickImage,
+
+              child: Container(
+
+                width: double.infinity,
+
+                height: 180,
+
+                decoration: BoxDecoration(
+
+                  border: Border.all(
+                    color: Colors.grey,
+                  ),
+
+                  borderRadius:
+                      BorderRadius.circular(
+                    15,
+                  ),
+                ),
+
+                child:
+                    selectedImage == null
+
+                        ? const Column(
+
+                            mainAxisAlignment:
+                                MainAxisAlignment
+                                    .center,
+
+                            children: [
+
+                              Icon(
+                                Icons.image,
+                                size: 50,
+                              ),
+
+                              SizedBox(
+                                height: 10,
+                              ),
+
+                              Text(
+                                "Pilih Foto",
+                              ),
+                            ],
+                          )
+
+                        : ClipRRect(
+
+                            borderRadius:
+                                BorderRadius.circular(
+                              15,
+                            ),
+
+                            child: Image.file(
+
+                              selectedImage!,
+
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+              ),
+            ),
+
+            const SizedBox(
+              height: 20,
+            ),
 
             SizedBox(
 
@@ -132,8 +251,9 @@ class _AddPlacePageState
 
                 onPressed: savePlace,
 
-                child:
-                    const Text("Simpan"),
+                child: const Text(
+                  "Simpan",
+                ),
               ),
             )
           ],
