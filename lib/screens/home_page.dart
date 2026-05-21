@@ -1,15 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'dart:io';
+
 import '../admin/admin_page.dart';
 import '../services/api_service.dart';
-import '../data/places.dart';
 import 'detail_page.dart';
 import 'saved_page.dart';
 
 class HomePage extends StatefulWidget {
+
   const HomePage({super.key});
 
   @override
@@ -20,6 +22,10 @@ class HomePage extends StatefulWidget {
 class _HomePageState
     extends State<HomePage> {
 
+  final MapController
+      mapController =
+      MapController();
+
   LatLng currentLocation =
       LatLng(-7.265, 112.752);
 
@@ -27,32 +33,32 @@ class _HomePageState
 
   String filterType = "default";
 
+  List places = [];
+
   bool isLoading = true;
 
   double toDouble(dynamic value) {
 
-    try {
-
-      return double.parse(
-        value.toString(),
-      );
-
-    } catch (e) {
-
-      return 0;
-    }
+    return double.tryParse(
+          value.toString(),
+        ) ??
+        0;
   }
 
   Future<void> getLocation() async {
 
     bool serviceEnabled;
+
     LocationPermission permission;
 
     serviceEnabled =
         await Geolocator
             .isLocationServiceEnabled();
 
-    if (!serviceEnabled) return;
+    if (!serviceEnabled) {
+
+      return;
+    }
 
     permission =
         await Geolocator
@@ -66,17 +72,48 @@ class _HomePageState
               .requestPermission();
     }
 
+    if (permission ==
+            LocationPermission
+                .denied ||
+        permission ==
+            LocationPermission
+                .deniedForever) {
+
+      return;
+    }
+
     Position position =
         await Geolocator
-            .getCurrentPosition();
+            .getCurrentPosition(
+
+      desiredAccuracy:
+          LocationAccuracy.best,
+    );
+
+    LatLng newLocation =
+        LatLng(
+
+      position.latitude,
+      position.longitude,
+    );
 
     setState(() {
 
-      currentLocation = LatLng(
-        position.latitude,
-        position.longitude,
-      );
+      currentLocation =
+          newLocation;
     });
+
+    mapController.move(
+      newLocation,
+      15,
+    );
+
+    print(
+
+      "Lokasi User: "
+      "${position.latitude}, "
+      "${position.longitude}",
+    );
   }
 
   Future<void> fetchPlaces() async {
@@ -87,11 +124,9 @@ class _HomePageState
           await ApiService
               .getPlaces();
 
-      places.clear();
-
-      places.addAll(data);
-
       setState(() {
+
+        places = data;
 
         isLoading = false;
       });
@@ -123,7 +158,14 @@ class _HomePageState
     );
   }
 
-  String getPhotoPath(String photo) {
+  String getPhotoPath(
+      String photo) {
+
+    if (photo.contains(
+        "assets/images/")) {
+
+      return photo;
+    }
 
     return "assets/images/$photo";
   }
@@ -139,7 +181,8 @@ class _HomePageState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context) {
 
     if (isLoading) {
 
@@ -238,6 +281,9 @@ class _HomePageState
 
           FlutterMap(
 
+            mapController:
+                mapController,
+
             options: MapOptions(
 
               initialCenter:
@@ -310,16 +356,14 @@ class _HomePageState
                               builder: (_) =>
                                   DetailPage(
 
-                                place: place,
+                                place:
+                                    place,
 
                                 currentLocation:
                                     currentLocation,
                               ),
                             ),
-                          ).then((_) {
-
-                            setState(() {});
-                          });
+                          );
                         },
 
                         child: const Icon(
@@ -433,6 +477,11 @@ class _HomePageState
 
                               ListTile(
 
+                                leading:
+                                    const Icon(
+                                  Icons.star,
+                                ),
+
                                 title:
                                     const Text(
                                   "Rating Tertinggi",
@@ -453,6 +502,11 @@ class _HomePageState
 
                               ListTile(
 
+                                leading:
+                                    const Icon(
+                                  Icons.near_me,
+                                ),
+
                                 title:
                                     const Text(
                                   "Terdekat",
@@ -472,6 +526,11 @@ class _HomePageState
                               ),
 
                               ListTile(
+
+                                leading:
+                                    const Icon(
+                                  Icons.social_distance,
+                                ),
 
                                 title:
                                     const Text(
@@ -516,7 +575,7 @@ class _HomePageState
                       ),
                     ).then((_) {
 
-                      setState(() {});
+                      fetchPlaces();
                     });
                   },
 
@@ -609,11 +668,22 @@ class _HomePageState
                               CircleAvatar(
 
                             backgroundImage:
-                                AssetImage(
-                              getPhotoPath(
-                                place['photo'],
-                              ),
-                            ),
+
+                                place['photo']
+                                        .toString()
+                                        .startsWith("/")
+
+                                    ? FileImage(
+                                        File(
+                                          place['photo'],
+                                        ),
+                                      )
+
+                                    : AssetImage(
+                                        getPhotoPath(
+                                          place['photo'],
+                                        ),
+                                      ) as ImageProvider,
                           ),
 
                           title: Text(
@@ -622,7 +692,7 @@ class _HomePageState
 
                           subtitle: Text(
 
-                            "⭐ ${toDouble(place['rating']).toStringAsFixed(1)} • "
+                            "⭐ ${place['rating']} • "
                             "${(distance / 1000).toStringAsFixed(1)} km",
                           ),
 
@@ -653,10 +723,7 @@ class _HomePageState
                                         currentLocation,
                                   ),
                                 ),
-                              ).then((_) {
-
-                                setState(() {});
-                              });
+                              );
                             },
                           ),
                         );
