@@ -32,6 +32,14 @@ class _EditPlacePageState
   late TextEditingController
       photoController;
 
+  double toDouble(String value) {
+
+    return double.tryParse(
+          value,
+        ) ??
+        0;
+  }
+
   @override
   void initState() {
 
@@ -44,24 +52,26 @@ class _EditPlacePageState
 
     addressController =
         TextEditingController(
-      text: widget.place['address'],
+      text:
+          widget.place['address'],
     );
 
     latController =
         TextEditingController(
-      text:
-          widget.place['lat'].toString(),
+      text: widget.place['lat']
+          .toString(),
     );
 
     lngController =
         TextEditingController(
-      text:
-          widget.place['lng'].toString(),
+      text: widget.place['lng']
+          .toString(),
     );
 
     photoController =
         TextEditingController(
-      text: widget.place['photo'],
+      text:
+          widget.place['photo'],
     );
   }
 
@@ -74,10 +84,14 @@ class _EditPlacePageState
         addressController.text;
 
     widget.place['lat'] =
-        double.parse(latController.text);
+        toDouble(
+      latController.text,
+    );
 
     widget.place['lng'] =
-        double.parse(lngController.text);
+        toDouble(
+      lngController.text,
+    );
 
     widget.place['photo'] =
         photoController.text;
@@ -86,26 +100,35 @@ class _EditPlacePageState
   }
 
   Widget buildField(
-      String label,
-      TextEditingController controller,
-      ) {
+    String label,
+    TextEditingController
+        controller,
+  ) {
 
     return Padding(
 
       padding:
-          const EdgeInsets.only(bottom: 15),
+          const EdgeInsets.only(
+        bottom: 15,
+      ),
 
       child: TextField(
 
-        controller: controller,
+        controller:
+            controller,
 
-        decoration: InputDecoration(
+        decoration:
+            InputDecoration(
 
           labelText: label,
 
-          border: OutlineInputBorder(
+          border:
+              OutlineInputBorder(
+
             borderRadius:
-                BorderRadius.circular(15),
+                BorderRadius.circular(
+              15,
+            ),
           ),
         ),
       ),
@@ -113,55 +136,76 @@ class _EditPlacePageState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context) {
 
     return Scaffold(
 
       appBar: AppBar(
-        title: const Text("Edit Tempat"),
+
+        title: const Text(
+          "Edit Tempat",
+        ),
       ),
 
-      body: Padding(
+      body:
+          SingleChildScrollView(
 
         padding:
-            const EdgeInsets.all(20),
+            const EdgeInsets.all(
+          20,
+        ),
 
         child: Column(
 
           children: [
 
             buildField(
-                "Nama Tempat",
-                nameController),
+              "Nama Tempat",
+              nameController,
+            ),
 
             buildField(
-                "Alamat",
-                addressController),
+              "Alamat",
+              addressController,
+            ),
 
             buildField(
-                "Latitude",
-                latController),
+              "Latitude",
+              latController,
+            ),
 
             buildField(
-                "Longitude",
-                lngController),
+              "Longitude",
+              lngController,
+            ),
 
             buildField(
-                "Photo Asset",
-                photoController),
+              "Nama Foto",
+              photoController,
+            ),
+
+            const SizedBox(
+              height: 20,
+            ),
 
             SizedBox(
 
-              width: double.infinity,
+              width:
+                  double.infinity,
 
               height: 50,
 
-              child: ElevatedButton(
+              child:
+                  ElevatedButton(
 
-                onPressed: updatePlace,
+                onPressed:
+                    updatePlace,
 
                 child:
-                    const Text("Update"),
+                    const Text(
+                  "Update",
+                ),
               ),
             )
           ],
@@ -170,3 +214,4 @@ class _EditPlacePageState
     );
   }
 }
+

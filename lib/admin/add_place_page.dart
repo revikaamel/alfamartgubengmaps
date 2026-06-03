@@ -1,13 +1,12 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-
+import '../services/api_service.dart';
 import '../data/places.dart';
 
 class AddPlacePage extends StatefulWidget {
 
-  const AddPlacePage({super.key});
+  const AddPlacePage({
+    super.key,
+  });
 
   @override
   State<AddPlacePage> createState() =>
@@ -29,74 +28,65 @@ class _AddPlacePageState
   final lngController =
       TextEditingController();
 
-  File? selectedImage;
+  final photoController =
+      TextEditingController();
 
-  Future<void> pickImage() async {
+  double toDouble(
+    String value,
+  ) {
 
-    final picker = ImagePicker();
-
-    final pickedFile =
-        await picker.pickImage(
-
-      source: ImageSource.gallery,
-    );
-
-    if (pickedFile != null) {
-
-      setState(() {
-
-        selectedImage =
-            File(pickedFile.path);
-      });
-    }
+    return double.tryParse(
+          value,
+        ) ??
+        0;
   }
 
-  double toDouble(String value) {
+ Future<void> savePlace() async {
 
-    return double.tryParse(value) ?? 0;
-  }
+  Map<String, dynamic> place = {
 
-  void savePlace() {
+    "id":
+        DateTime.now()
+            .millisecondsSinceEpoch,
 
-    places.add({
+    "name":
+        nameController.text,
 
-      "id": places.length + 1,
+    "address":
+        addressController.text,
 
-      "name":
-          nameController.text,
+    "lat":
+        toDouble(
+          latController.text,
+        ),
 
-      "address":
-          addressController.text,
+    "lng":
+        toDouble(
+          lngController.text,
+        ),
 
-      "lat":
-          toDouble(
-        latController.text,
-      ),
+    "photo":
+        photoController.text,
 
-      "lng":
-          toDouble(
-        lngController.text,
-      ),
+    "rating": 0,
 
-      "photo":
+    "reviews": ""
+  };
 
-          selectedImage != null
+  await ApiService.addPlace(
+    place,
+  );
 
-              ? selectedImage!.path
-
-              : "",
-
-      "rating": 0.0,
-
-      "reviews": [],
-    });
-
-    Navigator.pop(context);
-  }
+  Navigator.pop(
+    context,
+    true,
+  );
+}
 
   Widget buildField(
     String label,
-    TextEditingController controller,
+    TextEditingController
+        controller,
   ) {
 
     return Padding(
@@ -108,9 +98,11 @@ class _AddPlacePageState
 
       child: TextField(
 
-        controller: controller,
+        controller:
+            controller,
 
-        decoration: InputDecoration(
+        decoration:
+            InputDecoration(
 
           labelText: label,
 
@@ -128,7 +120,8 @@ class _AddPlacePageState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+      BuildContext context) {
 
     return Scaffold(
 
@@ -139,10 +132,13 @@ class _AddPlacePageState
         ),
       ),
 
-      body: SingleChildScrollView(
+      body:
+          SingleChildScrollView(
 
         padding:
-            const EdgeInsets.all(20),
+            const EdgeInsets.all(
+          20,
+        ),
 
         child: Column(
 
@@ -168,73 +164,9 @@ class _AddPlacePageState
               lngController,
             ),
 
-            const SizedBox(
-              height: 10,
-            ),
-
-            GestureDetector(
-
-              onTap: pickImage,
-
-              child: Container(
-
-                width: double.infinity,
-
-                height: 180,
-
-                decoration: BoxDecoration(
-
-                  border: Border.all(
-                    color: Colors.grey,
-                  ),
-
-                  borderRadius:
-                      BorderRadius.circular(
-                    15,
-                  ),
-                ),
-
-                child:
-                    selectedImage == null
-
-                        ? const Column(
-
-                            mainAxisAlignment:
-                                MainAxisAlignment
-                                    .center,
-
-                            children: [
-
-                              Icon(
-                                Icons.image,
-                                size: 50,
-                              ),
-
-                              SizedBox(
-                                height: 10,
-                              ),
-
-                              Text(
-                                "Pilih Foto",
-                              ),
-                            ],
-                          )
-
-                        : ClipRRect(
-
-                            borderRadius:
-                                BorderRadius.circular(
-                              15,
-                            ),
-
-                            child: Image.file(
-
-                              selectedImage!,
-
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-              ),
+            buildField(
+              "Nama Foto (contoh: alfamart.jpg)",
+              photoController,
             ),
 
             const SizedBox(
@@ -243,15 +175,21 @@ class _AddPlacePageState
 
             SizedBox(
 
-              width: double.infinity,
+              width:
+                  double.infinity,
 
               height: 50,
 
-              child: ElevatedButton(
+              child:
+                  ElevatedButton(
 
-                onPressed: savePlace,
+                onPressed: () async {
 
-                child: const Text(
+                  await savePlace();
+                },
+
+                child:
+                    const Text(
                   "Simpan",
                 ),
               ),
@@ -262,3 +200,4 @@ class _AddPlacePageState
     );
   }
 }
+

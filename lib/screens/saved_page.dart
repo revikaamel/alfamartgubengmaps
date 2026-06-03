@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../data/places.dart';
 import 'detail_page.dart';
@@ -16,12 +15,25 @@ class SavedPage extends StatefulWidget {
 class _SavedPageState
     extends State<SavedPage> {
 
+  String getPhotoPath(
+      String photo) {
+
+    if (photo.contains(
+        "assets/images/")) {
+
+      return photo;
+    }
+
+    return "assets/images/$photo";
+  }
+
   @override
   Widget build(BuildContext context) {
 
     return Scaffold(
 
       appBar: AppBar(
+
         title: const Text(
           "Tempat Tersimpan",
         ),
@@ -38,9 +50,11 @@ class _SavedPageState
 
           : ListView.builder(
 
-              itemCount: savedPlaces.length,
+              itemCount:
+                  savedPlaces.length,
 
-              itemBuilder: (context, index) {
+              itemBuilder:
+                  (context, index) {
 
                 var place =
                     savedPlaces[index];
@@ -48,16 +62,35 @@ class _SavedPageState
                 return Card(
 
                   margin:
-                      const EdgeInsets.all(10),
+                      const EdgeInsets.all(
+                    10,
+                  ),
 
                   child: ListTile(
 
+                    leading:
+                        CircleAvatar(
+
+                      backgroundImage:
+                          AssetImage(
+
+                        getPhotoPath(
+
+                          place['photo']
+                              .toString(),
+                        ),
+                      ),
+                    ),
+
                     title: Text(
-                      place['name'],
+                      place['name']
+                          .toString(),
                     ),
 
                     subtitle: Text(
-                      place['address'],
+                      place['address']
+                              ?.toString() ??
+                          "-",
                     ),
 
                     onTap: () {
@@ -71,13 +104,8 @@ class _SavedPageState
                           builder: (_) =>
                               DetailPage(
 
-                            place: place,
-
-                            currentLocation:
-                                LatLng(
-                              -7.265,
-                              112.752,
-                            ),
+                            place:
+                                place,
                           ),
                         ),
                       ).then((_) {

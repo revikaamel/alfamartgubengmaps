@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-
-import '../admin/admin_page.dart';
 import '../services/api_service.dart';
+import '../admin/admin_page.dart';
+import '../data/places.dart';
 import 'detail_page.dart';
 import 'saved_page.dart';
 
@@ -33,9 +33,8 @@ class _HomePageState
 
   String filterType = "default";
 
-  List places = [];
-
   bool isLoading = true;
+  bool mapReady = false;
 
   double toDouble(dynamic value) {
 
@@ -45,100 +44,125 @@ class _HomePageState
         0;
   }
 
-  Future<void> getLocation() async {
+ @override
+void initState() {
+  super.initState();
 
-    bool serviceEnabled;
+  loadData();
+  getLocation();
 
-    LocationPermission permission;
-
-    serviceEnabled =
-        await Geolocator
-            .isLocationServiceEnabled();
-
-    if (!serviceEnabled) {
-
-      return;
-    }
-
-    permission =
-        await Geolocator
-            .checkPermission();
-
-    if (permission ==
-        LocationPermission.denied) {
-
-      permission =
-          await Geolocator
-              .requestPermission();
-    }
-
-    if (permission ==
-            LocationPermission
-                .denied ||
-        permission ==
-            LocationPermission
-                .deniedForever) {
-
-      return;
-    }
-
-    Position position =
-        await Geolocator
-            .getCurrentPosition(
-
-      desiredAccuracy:
-          LocationAccuracy.best,
-    );
-
-    LatLng newLocation =
-        LatLng(
-
-      position.latitude,
-      position.longitude,
-    );
+  Geolocator.getPositionStream(
+    locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10,
+    ),
+  ).listen((Position position) {
 
     setState(() {
 
-      currentLocation =
-          newLocation;
+      currentLocation = LatLng(
+        position.latitude,
+        position.longitude,
+      );
+    });
+  });
+}
+Future<void> loadData() async {
+
+  try {
+
+    print("LOAD DATA DIMULAI");
+
+    final data =
+        await ApiService.getPlaces();
+
+    print("DATA DARI API:");
+    print(data);
+
+    print("JUMLAH DATA:");
+    print(data.length);
+
+    setState(() {
+
+      places.clear();
+
+      places.addAll(data);
+
+      isLoading = false;
     });
 
-    mapController.move(
-      newLocation,
-      15,
-    );
+    print("PLACES:");
+    print(places.length);
 
-    print(
+  } catch (e) {
 
-      "Lokasi User: "
-      "${position.latitude}, "
-      "${position.longitude}",
-    );
+    print("ERROR LOAD DATA:");
+    print(e);
+
+    setState(() {
+
+      isLoading = false;
+    });
   }
+}
 
-  Future<void> fetchPlaces() async {
+  Future<void> getLocation() async {
 
     try {
 
-      final data =
-          await ApiService
-              .getPlaces();
+      bool serviceEnabled =
+          await Geolocator
+              .isLocationServiceEnabled();
 
-      setState(() {
+      if (!serviceEnabled) {
+        return;
+      }
 
-        places = data;
+      LocationPermission permission =
+          await Geolocator
+              .checkPermission();
 
-        isLoading = false;
-      });
+      if (permission ==
+          LocationPermission.denied) {
+
+        permission =
+            await Geolocator
+                .requestPermission();
+      }
+
+      if (permission ==
+              LocationPermission.denied ||
+          permission ==
+              LocationPermission.deniedForever) {
+
+        return;
+      }
+
+      Position position =
+          await Geolocator
+              .getCurrentPosition(
+        desiredAccuracy:
+            LocationAccuracy.high,
+      );
+
+      currentLocation = LatLng(
+        position.latitude,
+        position.longitude,
+      );
+
+      setState(() {});
+
+      if (mapReady) {
+
+        mapController.move(
+          currentLocation,
+          15,
+        );
+      }
 
     } catch (e) {
 
       print(e);
-
-      setState(() {
-
-        isLoading = false;
-      });
     }
   }
 
@@ -171,33 +195,22 @@ class _HomePageState
   }
 
   @override
-  void initState() {
+Widget build(BuildContext context) {
 
-    super.initState();
+  if (isLoading) {
 
-    getLocation();
+    return const Scaffold(
 
-    fetchPlaces();
+      body: Center(
+
+        child:
+            CircularProgressIndicator(),
+      ),
+    );
   }
 
-  @override
-  Widget build(
-      BuildContext context) {
-
-    if (isLoading) {
-
-      return const Scaffold(
-
-        body: Center(
-
-          child:
-              CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    List filteredPlaces =
-        places.where((place) {
+  List filteredPlaces =
+      places.where((place) {
 
       return place['name']
           .toString()
@@ -290,6 +303,16 @@ class _HomePageState
                   currentLocation,
 
               initialZoom: 15,
+
+              onMapReady: () {
+
+                mapReady = true;
+
+                mapController.move(
+                  currentLocation,
+                  15,
+                );
+              },
             ),
 
             children: [
@@ -324,9 +347,10 @@ class _HomePageState
                   ),
 
                   ...filteredPlaces.map(
-                      (place) {
+                  (place) {
 
                     return Marker(
+                     
 
                       point: LatLng(
 
@@ -358,9 +382,6 @@ class _HomePageState
 
                                 place:
                                     place,
-
-                                currentLocation:
-                                    currentLocation,
                               ),
                             ),
                           );
@@ -477,11 +498,6 @@ class _HomePageState
 
                               ListTile(
 
-                                leading:
-                                    const Icon(
-                                  Icons.star,
-                                ),
-
                                 title:
                                     const Text(
                                   "Rating Tertinggi",
@@ -502,11 +518,6 @@ class _HomePageState
 
                               ListTile(
 
-                                leading:
-                                    const Icon(
-                                  Icons.near_me,
-                                ),
-
                                 title:
                                     const Text(
                                   "Terdekat",
@@ -526,11 +537,6 @@ class _HomePageState
                               ),
 
                               ListTile(
-
-                                leading:
-                                    const Icon(
-                                  Icons.social_distance,
-                                ),
 
                                 title:
                                     const Text(
@@ -575,7 +581,7 @@ class _HomePageState
                       ),
                     ).then((_) {
 
-                      fetchPlaces();
+                      setState(() {});
                     });
                   },
 
@@ -680,6 +686,7 @@ class _HomePageState
                                       )
 
                                     : AssetImage(
+
                                         getPhotoPath(
                                           place['photo'],
                                         ),
@@ -718,9 +725,6 @@ class _HomePageState
 
                                     place:
                                         place,
-
-                                    currentLocation:
-                                        currentLocation,
                                   ),
                                 ),
                               );

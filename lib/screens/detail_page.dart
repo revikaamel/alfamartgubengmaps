@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
-import 'dart:io';
+
 import '../data/places.dart';
 import 'route_page.dart';
 
 class DetailPage extends StatefulWidget {
+
   final Map place;
-  final LatLng currentLocation;
 
   const DetailPage({
     super.key,
     required this.place,
-    required this.currentLocation,
   });
 
   @override
@@ -33,6 +32,7 @@ class _DetailPageState
       TextEditingController();
 
   double toDouble(dynamic value) {
+
     return double.tryParse(
           value.toString(),
         ) ??
@@ -41,6 +41,7 @@ class _DetailPageState
 
   @override
   void initState() {
+
     super.initState();
 
     loadReviews();
@@ -49,71 +50,35 @@ class _DetailPageState
   }
 
   void loadReviews() {
-    var rawReviews =
-        widget.place['reviews'];
 
-    if (rawReviews == null ||
-        rawReviews.toString().isEmpty) {
-
-      reviews = [];
-
-      return;
-    }
-
-    if (rawReviews is List) {
-
-      reviews = List.from(rawReviews);
-
-    } else {
-
-      List<String> reviewTexts =
-          rawReviews
-              .toString()
-              .split(";");
-
-      reviews =
-          reviewTexts.map((text) {
-
-        return {
-          "text": text.trim(),
-          "rating":
-              widget.place['rating'],
-        };
-
-      }).toList();
-    }
+    reviews = List.from(
+      widget.place['reviews'] ?? [],
+    );
   }
 
   void calculateAverageRating() {
 
-    double originalRating =
-        toDouble(
-      widget.place['rating'],
-    );
-
     if (reviews.isEmpty) {
 
       averageRating =
-          originalRating;
+          toDouble(
+        widget.place['rating'],
+      );
 
       return;
     }
 
-    double total = originalRating;
-
-    int count = 1;
+    double total = 0;
 
     for (var review in reviews) {
 
       total += toDouble(
         review['rating'],
       );
-
-      count++;
     }
 
     averageRating =
-        total / count;
+        total / reviews.length;
   }
 
   bool isSaved() {
@@ -182,163 +147,8 @@ class _DetailPageState
     Navigator.pop(context);
   }
 
-  void editReview(int index) {
-
-    reviewController.text =
-        reviews[index]['text'];
-
-    userRating = toDouble(
-      reviews[index]['rating'],
-    );
-
-    showDialog(
-
-      context: context,
-
-      builder: (_) {
-
-        return AlertDialog(
-
-          title: const Text(
-            "Edit Ulasan",
-          ),
-
-          content: Column(
-
-            mainAxisSize:
-                MainAxisSize.min,
-
-            children: [
-
-              TextField(
-
-                controller:
-                    reviewController,
-
-                decoration:
-                    const InputDecoration(
-
-                  hintText:
-                      "Edit ulasan",
-                ),
-              ),
-
-              const SizedBox(
-                height: 15,
-              ),
-
-              DropdownButton<double>(
-
-                value: userRating,
-
-                isExpanded: true,
-
-                items: [
-
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-
-                ].map((e) {
-
-                  return DropdownMenuItem(
-
-                    value:
-                        e.toDouble(),
-
-                    child: Text(
-                      "$e ⭐",
-                    ),
-                  );
-                }).toList(),
-
-                onChanged: (value) {
-
-                  setState(() {
-
-                    userRating =
-                        value!;
-                  });
-                },
-              ),
-            ],
-          ),
-
-          actions: [
-
-            TextButton(
-
-              onPressed: () {
-
-                Navigator.pop(
-                    context);
-              },
-
-              child: const Text(
-                "Batal",
-              ),
-            ),
-
-            ElevatedButton(
-
-              onPressed: () {
-
-                setState(() {
-
-                  reviews[index] = {
-
-                    "text":
-                        reviewController
-                            .text,
-
-                    "rating":
-                        userRating,
-                  };
-
-                  widget.place['reviews'] =
-                      reviews;
-
-                  calculateAverageRating();
-                });
-
-                reviewController
-                    .clear();
-
-                Navigator.pop(
-                    context);
-              },
-
-              child: const Text(
-                "Simpan",
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void deleteReview(int index) {
-
-    setState(() {
-
-      reviews.removeAt(index);
-
-      widget.place['reviews'] =
-          reviews;
-
-      calculateAverageRating();
-    });
-  }
-
-  String getPhotoPath(String photo) {
-
-    if (photo.isEmpty) {
-
-      return "assets/images/default.png";
-    }
+  String getPhotoPath(
+      String photo) {
 
     if (photo.contains(
         "assets/images/")) {
@@ -406,33 +216,6 @@ class _DetailPageState
               height: 250,
 
               fit: BoxFit.cover,
-
-              errorBuilder:
-                  (
-                context,
-                error,
-                stackTrace,
-              ) {
-
-                return Container(
-
-                  width:
-                      double.infinity,
-
-                  height: 250,
-
-                  color:
-                      Colors.grey[300],
-
-                  child:
-                      const Icon(
-
-                    Icons.image,
-
-                    size: 80,
-                  ),
-                );
-              },
             ),
 
             Padding(
@@ -477,8 +260,8 @@ class _DetailPageState
 
                         Icons.star,
 
-                        color: Colors
-                            .orange,
+                        color:
+                            Colors.orange,
                       ),
 
                       const SizedBox(
@@ -490,12 +273,6 @@ class _DetailPageState
                         averageRating
                             .toStringAsFixed(
                                 1),
-
-                        style:
-                            const TextStyle(
-
-                          fontSize: 16,
-                        ),
                       ),
                     ],
                   ),
@@ -506,9 +283,8 @@ class _DetailPageState
 
                   Text(
                     widget.place[
-                                'address']
-                            ?.toString() ??
-                        "Alamat tidak tersedia",
+                            'address']
+                        .toString(),
                   ),
 
                   const SizedBox(
@@ -549,10 +325,6 @@ class _DetailPageState
                               place:
                                   widget
                                       .place,
-
-                              currentLocation:
-                                  widget
-                                      .currentLocation,
                             ),
                           ),
                         );
@@ -590,32 +362,12 @@ class _DetailPageState
 
                   else
 
-                    ...reviews
-                        .asMap()
-                        .entries
-                        .map((entry) {
-
-                      int index =
-                          entry.key;
-
-                      var review =
-                          entry.value;
+                    ...reviews.map((review) {
 
                       return Card(
 
-                        margin:
-                            const EdgeInsets
-                                .only(
-                          bottom: 10,
-                        ),
-
                         child:
                             ListTile(
-
-                          leading:
-                              const Icon(
-                            Icons.person,
-                          ),
 
                           title: Text(
                             review['text']
@@ -624,51 +376,6 @@ class _DetailPageState
 
                           subtitle: Text(
                             "⭐ ${review['rating']}",
-                          ),
-
-                          trailing:
-                              Row(
-
-                            mainAxisSize:
-                                MainAxisSize
-                                    .min,
-
-                            children: [
-
-                              IconButton(
-
-                                icon:
-                                    const Icon(
-                                  Icons.edit,
-                                  color:
-                                      Colors.blue,
-                                ),
-
-                                onPressed:
-                                    () {
-
-                                  editReview(
-                                      index);
-                                },
-                              ),
-
-                              IconButton(
-
-                                icon:
-                                    const Icon(
-                                  Icons.delete,
-                                  color:
-                                      Colors.red,
-                                ),
-
-                                onPressed:
-                                    () {
-
-                                  deleteReview(
-                                      index);
-                                },
-                              ),
-                            ],
                           ),
                         ),
                       );
@@ -700,11 +407,6 @@ class _DetailPageState
 
                       onPressed: () {
 
-                        reviewController
-                            .clear();
-
-                        userRating = 0;
-
                         showDialog(
 
                           context:
@@ -732,26 +434,12 @@ class _DetailPageState
 
                                     controller:
                                         reviewController,
-
-                                    decoration:
-                                        const InputDecoration(
-
-                                      hintText:
-                                          "Tulis ulasan",
-                                    ),
                                   ),
 
-                                  const SizedBox(
-                                    height:
-                                        15,
-                                  ),
-
-                                  DropdownButton<
-                                      double>(
+                                  DropdownButton<double>(
 
                                     value:
-                                        userRating ==
-                                                0
+                                        userRating == 0
                                             ? null
                                             : userRating,
 
@@ -759,9 +447,6 @@ class _DetailPageState
                                         const Text(
                                       "Pilih Rating",
                                     ),
-
-                                    isExpanded:
-                                        true,
 
                                     items: [
 
@@ -775,8 +460,8 @@ class _DetailPageState
 
                                       return DropdownMenuItem(
 
-                                        value: e
-                                            .toDouble(),
+                                        value:
+                                            e.toDouble(),
 
                                         child:
                                             Text(
@@ -786,9 +471,7 @@ class _DetailPageState
                                     }).toList(),
 
                                     onChanged:
-                                        (
-                                      value,
-                                    ) {
+                                        (value) {
 
                                       setState(() {
 
@@ -801,21 +484,6 @@ class _DetailPageState
                               ),
 
                               actions: [
-
-                                TextButton(
-
-                                  onPressed:
-                                      () {
-
-                                    Navigator.pop(
-                                        context);
-                                  },
-
-                                  child:
-                                      const Text(
-                                    "Batal",
-                                  ),
-                                ),
 
                                 ElevatedButton(
 

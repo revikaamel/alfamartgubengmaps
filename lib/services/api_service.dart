@@ -4,10 +4,9 @@ import 'package:http/http.dart' as http;
 class ApiService {
 
   static const String apiUrl =
-      'https://script.google.com/macros/s/AKfycbzD4A2FKHzxO0P_dGtvO_2tBZgDTVr-a-2QJPM_mo7O-yelIYuDGRN4tCVF7amokB53WA/exec';
+      'https://script.google.com/macros/s/AKfycbyDuHtmjoMMl5MB7osrvPKdXlGu0YhbebqF2EbF2JxYg-huo9HEjC-pUFX0rvbBrdRTIw/exec';
 
-  static Future<List<dynamic>>
-      getPlaces() async {
+  static Future<List<dynamic>> getPlaces() async {
 
     final response =
         await http.get(
@@ -26,5 +25,30 @@ class ApiService {
         'Failed load data',
       );
     }
+  }
+
+  static Future<void> addPlace(
+      Map<String, dynamic> place) async {
+
+    final response =
+        await http.post(
+
+      Uri.parse(apiUrl),
+
+      headers: {
+        "Content-Type":
+            "application/json",
+      },
+
+      body: jsonEncode({
+
+        "action": "add",
+
+        ...place,
+      }),
+    );
+
+    print(response.statusCode);
+    print(response.body);
   }
 }

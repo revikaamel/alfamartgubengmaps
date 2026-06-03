@@ -1,26 +1,19 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
+
 import '../data/places.dart';
 import 'add_place_page.dart';
 import 'edit_place_page.dart';
 
 class AdminPage extends StatefulWidget {
-
   const AdminPage({super.key});
 
   @override
-  State<AdminPage> createState() =>
-      _AdminPageState();
+  State<AdminPage> createState() => _AdminPageState();
 }
 
-class _AdminPageState
-    extends State<AdminPage> {
-
+class _AdminPageState extends State<AdminPage> {
   String getPhotoPath(String photo) {
-
-    if (photo.contains(
-        "assets/images/")) {
-
+    if (photo.contains("assets/images/")) {
       return photo;
     }
 
@@ -29,167 +22,82 @@ class _AdminPageState
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
+      appBar: AppBar(title: const Text("Admin Direktori")),
 
-      appBar: AppBar(
-
-        title: const Text(
-          "Admin Direktori",
-        ),
-      ),
-
-      floatingActionButton:
-          FloatingActionButton(
-
-        child: const Icon(
-          Icons.add,
-        ),
+      floatingActionButton: FloatingActionButton(
+        child: const Icon(Icons.add),
 
         onPressed: () async {
-
-          await Navigator.push(
-
+          final result = await Navigator.push(
             context,
 
-            MaterialPageRoute(
-
-              builder: (_) =>
-                  const AddPlacePage(),
-            ),
+            MaterialPageRoute(builder: (_) => const AddPlacePage()),
           );
-
-          setState(() {});
+          if (result == true) {
+            setState(() {});
+          }
         },
       ),
 
-      body: places.isEmpty
+      body:
+          places.isEmpty
+              ? const Center(child: Text("Belum ada data"))
+              : ListView.builder(
+                itemCount: places.length,
 
-          ? const Center(
+                itemBuilder: (context, index) {
+                  var place = places[index];
 
-              child: Text(
-                "Belum ada data",
-              ),
-            )
+                  return Card(
+                    margin: const EdgeInsets.all(10),
 
-          : ListView.builder(
-
-              itemCount:
-                  places.length,
-
-              itemBuilder:
-                  (context, index) {
-
-                var place =
-                    places[index];
-
-                return Card(
-
-                  margin:
-                      const EdgeInsets
-                          .all(10),
-
-                  child: ListTile(
-
-                    leading:
-                        CircleAvatar(
-
-                      backgroundImage:
-                          AssetImage(
-
-                        getPhotoPath(
-
-                          place['photo']
-                              .toString(),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage: AssetImage(
+                          getPhotoPath(place['photo'].toString()),
                         ),
                       ),
-                    ),
 
-                    title: Text(
+                      title: Text(place['name'].toString()),
 
-                      place['name']
-                          .toString(),
-                    ),
+                      subtitle: Text(place['address']?.toString() ?? "-"),
 
-                    subtitle: Text(
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
 
-                      place['address']
-                              ?.toString() ??
-                          "-",
-                    ),
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: Colors.blue),
 
-                    trailing: Row(
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
 
-                      mainAxisSize:
-                          MainAxisSize
-                              .min,
-
-                      children: [
-
-                        IconButton(
-
-                          icon:
-                              const Icon(
-
-                            Icons.edit,
-
-                            color:
-                                Colors
-                                    .blue,
-                          ),
-
-                          onPressed:
-                              () async {
-
-                            await Navigator
-                                .push(
-
-                              context,
-
-                              MaterialPageRoute(
-
-                                builder: (_) =>
-                                    EditPlacePage(
-
-                                  place:
-                                      place,
+                                MaterialPageRoute(
+                                  builder: (_) => EditPlacePage(place: place),
                                 ),
-                              ),
-                            );
+                              );
 
-                            setState(
-                                () {});
-                          },
-                        ),
-
-                        IconButton(
-
-                          icon:
-                              const Icon(
-
-                            Icons.delete,
-
-                            color:
-                                Colors
-                                    .red,
+                              setState(() {});
+                            },
                           ),
 
-                          onPressed:
-                              () {
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
 
-                            setState(() {
-
-                              places.removeAt(
-                                  index);
-                            });
-                          },
-                        ),
-                      ],
+                            onPressed: () {
+                              setState(() {
+                                places.removeAt(index);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
     );
   }
 }

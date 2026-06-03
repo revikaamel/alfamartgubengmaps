@@ -9,12 +9,10 @@ import 'package:http/http.dart' as http;
 class RoutePage extends StatefulWidget {
 
   final Map place;
-  final LatLng currentLocation;
 
   const RoutePage({
     super.key,
     required this.place,
-    required this.currentLocation,
   });
 
   @override
@@ -25,19 +23,24 @@ class RoutePage extends StatefulWidget {
 class _RoutePageState
     extends State<RoutePage> {
 
+  final MapController mapController =
+      MapController();
+
+  LatLng currentLocation =
+      LatLng(-7.265, 112.752);
+
   String vehicle = "Motor";
 
   List<LatLng> routePoints = [];
 
   bool isLoading = true;
 
-  double currentZoom = 13;
-
   double toDouble(dynamic value) {
 
     return double.tryParse(
-      value.toString(),
-    ) ?? 0;
+          value.toString(),
+        ) ??
+        0;
   }
 
   @override
@@ -45,7 +48,58 @@ class _RoutePageState
 
     super.initState();
 
-    getRoute();
+    getCurrentLocation();
+  }
+
+  Future<void> getCurrentLocation() async {
+
+    bool serviceEnabled;
+
+    LocationPermission permission;
+
+    serviceEnabled =
+        await Geolocator
+            .isLocationServiceEnabled();
+
+    if (!serviceEnabled) {
+
+      return;
+    }
+
+    permission =
+        await Geolocator
+            .checkPermission();
+
+    if (permission ==
+        LocationPermission.denied) {
+
+      permission =
+          await Geolocator
+              .requestPermission();
+    }
+
+    if (permission ==
+            LocationPermission.denied ||
+        permission ==
+            LocationPermission
+                .deniedForever) {
+
+      return;
+    }
+
+    Position position =
+        await Geolocator
+            .getCurrentPosition(
+      desiredAccuracy:
+          LocationAccuracy.best,
+    );
+
+    currentLocation = LatLng(
+      position.latitude,
+      position.longitude,
+    );
+
+    await getRoute();
   }
 
   Future<void> getRoute() async {
@@ -83,8 +137,8 @@ class _RoutePageState
 
           "https://router.project-osrm.org/route/v1/"
           "$profile/"
-          "${widget.currentLocation.longitude},"
-          "${widget.currentLocation.latitude};"
+          "${currentLocation.longitude},"
+          "${currentLocation.latitude};"
           "$lng,"
           "$lat"
           "?overview=full&geometries=geojson";
@@ -133,6 +187,14 @@ class _RoutePageState
 
           isLoading = false;
         });
+
+        if (routePoints.isNotEmpty) {
+
+          mapController.move(
+            currentLocation,
+            14,
+          );
+        }
       }
 
     } catch (e) {
@@ -151,11 +213,9 @@ class _RoutePageState
     return Geolocator
         .distanceBetween(
 
-      widget.currentLocation
-          .latitude,
+      currentLocation.latitude,
 
-      widget.currentLocation
-          .longitude,
+      currentLocation.longitude,
 
       toDouble(
         widget.place['lat'],
@@ -249,27 +309,15 @@ class _RoutePageState
 
             child: FlutterMap(
 
+              mapController:
+                  mapController,
+
               options: MapOptions(
 
                 initialCenter:
-                    widget
-                        .currentLocation,
+                    currentLocation,
 
-                initialZoom: 13,
-
-                onPositionChanged:
-                    (
-                  position,
-                  hasGesture,
-                ) {
-
-                  setState(() {
-
-                    currentZoom =
-                        position.zoom ??
-                            13;
-                  });
-                },
+                initialZoom: 14,
               ),
 
               children: [
@@ -287,21 +335,7 @@ class _RoutePageState
                     Polyline(
 
                       points:
-                          currentZoom <
-                                  14
-
-                              ? [
-
-                                  widget
-                                      .currentLocation,
-
-                                  LatLng(
-                                    lat,
-                                    lng,
-                                  ),
-                                ]
-
-                              : routePoints,
+                          routePoints,
 
                       strokeWidth:
                           6,
@@ -318,8 +352,8 @@ class _RoutePageState
 
                     Marker(
 
-                      point: widget
-                          .currentLocation,
+                      point:
+                          currentLocation,
 
                       width: 80,
                       height: 80,
