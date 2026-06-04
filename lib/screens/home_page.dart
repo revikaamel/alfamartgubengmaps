@@ -321,6 +321,9 @@ Widget build(BuildContext context) {
 
                 urlTemplate:
                     'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+
+                userAgentPackageName:
+                    'com.example.alfamart_gubeng_maps',
               ),
 
               MarkerLayer(
