@@ -11,23 +11,16 @@ import 'detail_page.dart';
 import 'saved_page.dart';
 
 class HomePage extends StatefulWidget {
-
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() =>
-      _HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState
-    extends State<HomePage> {
+class _HomePageState extends State<HomePage> {
+  final MapController mapController = MapController();
 
-  final MapController
-      mapController =
-      MapController();
-
-  LatLng currentLocation =
-      LatLng(-7.265, 112.752);
+  LatLng currentLocation = LatLng(-7.265, 112.752);
 
   String search = "";
 
@@ -37,143 +30,97 @@ class _HomePageState
   bool mapReady = false;
 
   double toDouble(dynamic value) {
-
-    return double.tryParse(
-          value.toString(),
-        ) ??
-        0;
+    return double.tryParse(value.toString()) ?? 0;
   }
 
- @override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  loadData();
-  getLocation();
+    loadData();
+    getLocation();
 
-  Geolocator.getPositionStream(
-    locationSettings: const LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
-    ),
-  ).listen((Position position) {
-
-    setState(() {
-
-      currentLocation = LatLng(
-        position.latitude,
-        position.longitude,
-      );
-    });
-  });
-}
-Future<void> loadData() async {
-
-  try {
-
-    print("LOAD DATA DIMULAI");
-
-    final data =
-        await ApiService.getPlaces();
-
-    print("DATA DARI API:");
-    print(data);
-
-    print("JUMLAH DATA:");
-    print(data.length);
-
-    setState(() {
-
-      places.clear();
-
-      places.addAll(data);
-
-      isLoading = false;
-    });
-
-    print("PLACES:");
-    print(places.length);
-
-  } catch (e) {
-
-    print("ERROR LOAD DATA:");
-    print(e);
-
-    setState(() {
-
-      isLoading = false;
+    Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen((Position position) {
+      setState(() {
+        currentLocation = LatLng(position.latitude, position.longitude);
+      });
     });
   }
-}
+
+  Future<void> loadData() async {
+    try {
+      print("LOAD DATA DIMULAI");
+
+      final data = await ApiService.getPlaces();
+
+      print("DATA DARI API:");
+      print(data);
+
+      print("JUMLAH DATA:");
+      print(data.length);
+
+      setState(() {
+        places.clear();
+
+        places.addAll(data);
+
+        isLoading = false;
+      });
+
+      print("PLACES:");
+      print(places.length);
+    } catch (e) {
+      print("ERROR LOAD DATA:");
+      print(e);
+
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   Future<void> getLocation() async {
-
     try {
-
-      bool serviceEnabled =
-          await Geolocator
-              .isLocationServiceEnabled();
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
         return;
       }
 
-      LocationPermission permission =
-          await Geolocator
-              .checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
 
-      if (permission ==
-          LocationPermission.denied) {
-
-        permission =
-            await Geolocator
-                .requestPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
       }
 
-      if (permission ==
-              LocationPermission.denied ||
-          permission ==
-              LocationPermission.deniedForever) {
-
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
         return;
       }
 
-      Position position =
-          await Geolocator
-              .getCurrentPosition(
-        desiredAccuracy:
-            LocationAccuracy.high,
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
       );
 
-      currentLocation = LatLng(
-        position.latitude,
-        position.longitude,
-      );
+      currentLocation = LatLng(position.latitude, position.longitude);
 
       setState(() {});
 
       if (mapReady) {
-
-        mapController.move(
-          currentLocation,
-          15,
-        );
+        mapController.move(currentLocation, 15);
       }
-
     } catch (e) {
-
       print(e);
     }
   }
 
-  double calculateDistance(
-    double lat,
-    double lng,
-  ) {
-
-    return Geolocator
-        .distanceBetween(
-
+  double calculateDistance(double lat, double lng) {
+    return Geolocator.distanceBetween(
       currentLocation.latitude,
       currentLocation.longitude,
 
@@ -182,12 +129,8 @@ Future<void> loadData() async {
     );
   }
 
-  String getPhotoPath(
-      String photo) {
-
-    if (photo.contains(
-        "assets/images/")) {
-
+  String getPhotoPath(String photo) {
+    if (photo.contains("assets/images/")) {
       return photo;
     }
 
@@ -195,204 +138,124 @@ Future<void> loadData() async {
   }
 
   @override
-Widget build(BuildContext context) {
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
-  if (isLoading) {
-
-    return const Scaffold(
-
-      body: Center(
-
-        child:
-            CircularProgressIndicator(),
-      ),
-    );
-  }
-
-  List filteredPlaces =
-      places.where((place) {
-
-      return place['name']
-          .toString()
-          .toLowerCase()
-          .contains(
+    List filteredPlaces =
+        places.where((place) {
+          return place['name'].toString().toLowerCase().contains(
             search.toLowerCase(),
           );
-
-    }).toList();
+        }).toList();
 
     if (filterType == "rating") {
-
       filteredPlaces.sort(
-
-        (a, b) =>
-
-            toDouble(
-              b['rating'],
-            ).compareTo(
-
-              toDouble(
-                a['rating'],
-              ),
-            ),
+        (a, b) => toDouble(b['rating']).compareTo(toDouble(a['rating'])),
       );
     }
 
     if (filterType == "distance") {
-
       filteredPlaces.sort((a, b) {
-
-        double distanceA =
-            calculateDistance(
-
+        double distanceA = calculateDistance(
           toDouble(a['lat']),
           toDouble(a['lng']),
         );
 
-        double distanceB =
-            calculateDistance(
-
+        double distanceB = calculateDistance(
           toDouble(b['lat']),
           toDouble(b['lng']),
         );
 
-        return distanceA.compareTo(
-          distanceB,
-        );
+        return distanceA.compareTo(distanceB);
       });
     }
 
     if (filterType == "farthest") {
-
       filteredPlaces.sort((a, b) {
-
-        double distanceA =
-            calculateDistance(
-
+        double distanceA = calculateDistance(
           toDouble(a['lat']),
           toDouble(a['lng']),
         );
 
-        double distanceB =
-            calculateDistance(
-
+        double distanceB = calculateDistance(
           toDouble(b['lat']),
           toDouble(b['lng']),
         );
 
-        return distanceB.compareTo(
-          distanceA,
-        );
+        return distanceB.compareTo(distanceA);
       });
     }
 
     return Scaffold(
-
       body: Stack(
-
         children: [
-
           FlutterMap(
-
-            mapController:
-                mapController,
+            mapController: mapController,
 
             options: MapOptions(
-
-              initialCenter:
-                  currentLocation,
+              initialCenter: currentLocation,
 
               initialZoom: 15,
 
               onMapReady: () {
-
                 mapReady = true;
 
-                mapController.move(
-                  currentLocation,
-                  15,
-                );
+                mapController.move(currentLocation, 15);
               },
             ),
 
             children: [
-
               TileLayer(
-
                 urlTemplate:
-                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.alfamart_gubeng_maps',
               ),
 
               MarkerLayer(
-
                 markers: [
-
                   Marker(
-
-                    point:
-                        currentLocation,
+                    point: currentLocation,
 
                     width: 80,
                     height: 80,
 
                     child: const Icon(
-
                       Icons.my_location,
 
-                      color:
-                          Colors.blue,
+                      color: Colors.blue,
 
                       size: 40,
                     ),
                   ),
 
-                  ...filteredPlaces.map(
-                  (place) {
-
+                  ...filteredPlaces.map((place) {
                     return Marker(
-                     
-
                       point: LatLng(
+                        toDouble(place['lat']),
 
-                        toDouble(
-                          place['lat'],
-                        ),
-
-                        toDouble(
-                          place['lng'],
-                        ),
+                        toDouble(place['lng']),
                       ),
 
                       width: 80,
                       height: 80,
 
-                      child:
-                          GestureDetector(
-
+                      child: GestureDetector(
                         onTap: () {
-
                           Navigator.push(
-
                             context,
 
                             MaterialPageRoute(
-
-                              builder: (_) =>
-                                  DetailPage(
-
-                                place:
-                                    place,
-                              ),
+                              builder: (_) => DetailPage(place: place),
                             ),
                           );
                         },
 
                         child: const Icon(
-
                           Icons.location_on,
 
-                          color:
-                              Colors.red,
+                          color: Colors.red,
 
                           size: 40,
                         ),
@@ -405,154 +268,92 @@ Widget build(BuildContext context) {
           ),
 
           Positioned(
-
             top: 50,
             left: 15,
             right: 15,
 
             child: Row(
-
               children: [
-
                 Expanded(
-
                   child: TextField(
-
-                    decoration:
-                        InputDecoration(
-
+                    decoration: InputDecoration(
                       filled: true,
 
-                      fillColor:
-                          Colors.white,
+                      fillColor: Colors.white,
 
-                      hintText:
-                          "Cari Alfamart",
+                      hintText: "Cari Alfamart",
 
-                      prefixIcon:
-                          const Icon(
-                        Icons.search,
-                      ),
+                      prefixIcon: const Icon(Icons.search),
 
-                      border:
-                          OutlineInputBorder(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
 
-                        borderRadius:
-                            BorderRadius
-                                .circular(
-                                    30),
-
-                        borderSide:
-                            BorderSide.none,
+                        borderSide: BorderSide.none,
                       ),
                     ),
 
                     onChanged: (value) {
-
                       setState(() {
-
                         search = value;
                       });
                     },
                   ),
                 ),
 
-                const SizedBox(
-                    width: 10),
+                const SizedBox(width: 10),
 
                 Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
 
-                  decoration:
-                      BoxDecoration(
-
-                    color:
-                        Colors.white,
-
-                    borderRadius:
-                        BorderRadius
-                            .circular(
-                                15),
+                    borderRadius: BorderRadius.circular(15),
                   ),
 
                   child: IconButton(
-
-                    icon: const Icon(
-                      Icons.tune,
-                    ),
+                    icon: const Icon(Icons.tune),
 
                     onPressed: () {
-
                       showModalBottomSheet(
-
                         context: context,
 
                         builder: (_) {
-
                           return Column(
-
-                            mainAxisSize:
-                                MainAxisSize
-                                    .min,
+                            mainAxisSize: MainAxisSize.min,
 
                             children: [
-
                               ListTile(
-
-                                title:
-                                    const Text(
-                                  "Rating Tertinggi",
-                                ),
+                                title: const Text("Rating Tertinggi"),
 
                                 onTap: () {
-
                                   setState(() {
-
-                                    filterType =
-                                        "rating";
+                                    filterType = "rating";
                                   });
 
-                                  Navigator.pop(
-                                      context);
+                                  Navigator.pop(context);
                                 },
                               ),
 
                               ListTile(
-
-                                title:
-                                    const Text(
-                                  "Terdekat",
-                                ),
+                                title: const Text("Terdekat"),
 
                                 onTap: () {
-
                                   setState(() {
-
-                                    filterType =
-                                        "distance";
+                                    filterType = "distance";
                                   });
 
-                                  Navigator.pop(
-                                      context);
+                                  Navigator.pop(context);
                                 },
                               ),
 
                               ListTile(
-
-                                title:
-                                    const Text(
-                                  "Terjauh",
-                                ),
+                                title: const Text("Terjauh"),
 
                                 onTap: () {
-
                                   setState(() {
-
-                                    filterType =
-                                        "farthest";
+                                    filterType = "farthest";
                                   });
 
-                                  Navigator.pop(
-                                      context);
+                                  Navigator.pop(context);
                                 },
                               ),
                             ],
@@ -563,48 +364,30 @@ Widget build(BuildContext context) {
                   ),
                 ),
 
-                const SizedBox(
-                    width: 10),
+                const SizedBox(width: 10),
 
                 GestureDetector(
-
                   onTap: () {
-
                     Navigator.push(
-
                       context,
 
-                      MaterialPageRoute(
-
-                        builder: (_) =>
-                            const AdminPage(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const AdminPage()),
                     ).then((_) {
-
                       setState(() {});
                     });
                   },
 
                   child: Container(
-
                     width: 50,
                     height: 50,
 
-                    decoration:
-                        const BoxDecoration(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
 
-                      color:
-                          Colors.white,
-
-                      shape:
-                          BoxShape.circle,
+                      shape: BoxShape.circle,
                     ),
 
-                    child: const Icon(
-
-                      Icons
-                          .admin_panel_settings,
-                    ),
+                    child: const Icon(Icons.admin_panel_settings),
                   ),
                 ),
               ],
@@ -612,120 +395,63 @@ Widget build(BuildContext context) {
           ),
 
           Positioned(
-
             bottom: 0,
             left: 0,
             right: 0,
 
             child: Container(
-
               height: 320,
 
-              decoration:
-                  const BoxDecoration(
-
+              decoration: const BoxDecoration(
                 color: Colors.white,
 
-                borderRadius:
-                    BorderRadius.only(
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(25),
 
-                  topLeft:
-                      Radius.circular(25),
-
-                  topRight:
-                      Radius.circular(25),
+                  topRight: Radius.circular(25),
                 ),
               ),
 
               child: Column(
-
                 children: [
-
                   Expanded(
+                    child: ListView.builder(
+                      itemCount: filteredPlaces.length,
 
-                    child:
-                        ListView.builder(
+                      itemBuilder: (context, index) {
+                        var place = filteredPlaces[index];
 
-                      itemCount:
-                          filteredPlaces
-                              .length,
+                        double distance = calculateDistance(
+                          toDouble(place['lat']),
 
-                      itemBuilder:
-                          (context,
-                              index) {
-
-                        var place =
-                            filteredPlaces[
-                                index];
-
-                        double distance =
-                            calculateDistance(
-
-                          toDouble(
-                              place['lat']),
-
-                          toDouble(
-                              place['lng']),
+                          toDouble(place['lng']),
                         );
 
                         return ListTile(
-
-                          leading:
-                              CircleAvatar(
-
+                          leading: CircleAvatar(
                             backgroundImage:
-
-                                place['photo']
-                                        .toString()
-                                        .startsWith("/")
-
-                                    ? FileImage(
-                                        File(
-                                          place['photo'],
-                                        ),
-                                      )
-
-                                    : AssetImage(
-
-                                        getPhotoPath(
-                                          place['photo'],
-                                        ),
-                                      ) as ImageProvider,
+                                place['photo'].toString().startsWith("/")
+                                    ? FileImage(File(place['photo']))
+                                    : AssetImage(getPhotoPath(place['photo']))
+                                        as ImageProvider,
                           ),
 
-                          title: Text(
-                            place['name'],
-                          ),
+                          title: Text(place['name']),
 
                           subtitle: Text(
-
                             "⭐ ${place['rating']} • "
                             "${(distance / 1000).toStringAsFixed(1)} km",
                           ),
 
-                          trailing:
-                              IconButton(
+                          trailing: IconButton(
+                            icon: const Icon(Icons.route),
 
-                            icon:
-                                const Icon(
-                              Icons.route,
-                            ),
-
-                            onPressed:
-                                () {
-
+                            onPressed: () {
                               Navigator.push(
-
                                 context,
 
                                 MaterialPageRoute(
-
-                                  builder: (_) =>
-                                      DetailPage(
-
-                                    place:
-                                        place,
-                                  ),
+                                  builder: (_) => DetailPage(place: place),
                                 ),
                               );
                             },
@@ -736,50 +462,34 @@ Widget build(BuildContext context) {
                   ),
 
                   Padding(
-
-                    padding:
-                        const EdgeInsets
-                            .all(15),
+                    padding: const EdgeInsets.all(15),
 
                     child: SizedBox(
-
-                      width:
-                          double.infinity,
+                      width: double.infinity,
 
                       height: 50,
 
-                      child:
-                          ElevatedButton
-                              .icon(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.bookmark),
 
-                        icon: const Icon(
-                          Icons.bookmark,
-                        ),
-
-                        label: const Text(
-                          "Tersimpan",
-                        ),
+                        label: const Text("Tersimpan"),
 
                         onPressed: () {
-
                           Navigator.push(
-
                             context,
 
                             MaterialPageRoute(
-
-                              builder: (_) =>
-                                  const SavedPage(),
+                              builder: (_) => const SavedPage(),
                             ),
                           );
                         },
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
-          )
+          ),
         ],
       ),
     );
