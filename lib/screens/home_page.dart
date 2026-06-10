@@ -209,8 +209,15 @@ class _HomePageState extends State<HomePage> {
             children: [
               TileLayer(
                 urlTemplate:
+<<<<<<< HEAD
                     'https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.alfamart_gubeng_maps',
+=======
+                    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+
+                userAgentPackageName:
+                    'com.example.alfamart_gubeng_maps',
+>>>>>>> origin/master
               ),
 
               MarkerLayer(
