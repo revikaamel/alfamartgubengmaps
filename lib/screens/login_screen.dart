@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../admin/login_page.dart';
+import '../services/supabase_service.dart';
 import 'home_page.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,7 +18,7 @@ class _LoginScreenState extends State<LoginScreen>
   static const Color _redLight = Color(0xFFEF9A9A);
 
   final _formKey = GlobalKey<FormState>();
-  final _userCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
 
   bool _obscure = true;
@@ -45,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _animCtrl.dispose();
-    _userCtrl.dispose();
+    _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
   }
@@ -58,29 +60,30 @@ class _LoginScreenState extends State<LoginScreen>
       _errorMsg = null;
     });
 
-    // Simulasi delay login (ganti dengan API call nyata jika perlu)
-    await Future.delayed(const Duration(milliseconds: 1200));
-
-    // Validasi sederhana — ubah sesuai kebutuhan
-    const validUser = 'admin';
-    const validPass = 'admin123';
-
-    if (_userCtrl.text.trim() == validUser && _passCtrl.text == validPass) {
+    try {
+      await SupabaseService.signIn(
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text,
+      );
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => const HomePage(),
-          transitionsBuilder:
-              (_, anim, __, child) =>
-                  FadeTransition(opacity: anim, child: child),
+          transitionsBuilder: (_, anim, __, child) =>
+              FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 500),
         ),
       );
-    } else {
+    } on AuthException catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMsg = 'Username atau password salah.';
+        _errorMsg = e.message;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMsg = 'Terjadi kesalahan, coba lagi.';
       });
     }
   }
