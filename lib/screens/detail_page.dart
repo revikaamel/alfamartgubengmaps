@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../data/places.dart';
 import 'route_page.dart';
@@ -146,7 +145,7 @@ class _DetailPageState extends State<DetailPage> {
                         width: 44.0,
                         height: 44.0,
                         decoration: BoxDecoration(
-                          color: _brandRed.withOpacity(0.1),
+                          color: _brandRed.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12.0),
                         ),
                         child: const Icon(
@@ -651,7 +650,7 @@ class _ActionButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(16.0),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.3),
+              color: color.withValues(alpha: 0.3),
               blurRadius: 10.0,
               offset: const Offset(0.0, 4.0),
             ),
@@ -712,7 +711,7 @@ class _ReviewCard extends StatelessWidget {
                 width: 38.0,
                 height: 38.0,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD32F2F).withOpacity(0.1),
+                  color: const Color(0xFFD32F2F).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
