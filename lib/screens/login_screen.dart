@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../admin/login_page.dart';
-import '../services/supabase_service.dart';
 import 'home_page.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen>
   static const Color _redLight = Color(0xFFEF9A9A);
 
   final _formKey = GlobalKey<FormState>();
-  final _userCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
 
@@ -29,6 +26,14 @@ class _LoginScreenState extends State<LoginScreen>
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+
+  // ── Akun dummy user — tambah / ubah sesuai kebutuhan ──────────────────
+  static const List<Map<String, String>> _dummyUsers = [
+    {'username': 'user', 'password': 'user123'},
+    {'username': 'budi', 'password': 'budi2024'},
+    {'username': 'siti', 'password': 'siti2024'},
+    {'username': 'demo', 'password': 'demo123'},
+  ];
 
   @override
   void initState() {
@@ -61,12 +66,19 @@ class _LoginScreenState extends State<LoginScreen>
       _errorMsg = null;
     });
 
-    try {
-      await SupabaseService.signIn(
-        email: _userCtrl.text.trim(),
-        password: _passCtrl.text,
-      );
-      if (!mounted) return;
+    // Simulasi loading agar terasa natural
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    final inputUser = _emailCtrl.text.trim();
+    final inputPass = _passCtrl.text;
+
+    final matched = _dummyUsers.any(
+      (u) => u['username'] == inputUser && u['password'] == inputPass,
+    );
+
+    if (!mounted) return;
+
+    if (matched) {
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
@@ -77,15 +89,10 @@ class _LoginScreenState extends State<LoginScreen>
           transitionDuration: const Duration(milliseconds: 500),
         ),
       );
-    } on AuthException catch (e) {
+    } else {
       setState(() {
         _isLoading = false;
-        _errorMsg = e.message;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMsg = 'Terjadi kesalahan, coba lagi.';
+        _errorMsg = 'Username atau password salah.';
       });
     }
   }
@@ -218,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen>
                               _buildLabel('Username'),
                               const SizedBox(height: 8),
                               TextFormField(
-                                controller: _userCtrl,
+                                controller: _emailCtrl,
                                 keyboardType: TextInputType.text,
                                 textInputAction: TextInputAction.next,
                                 decoration: _inputDecoration(
@@ -351,6 +358,38 @@ class _LoginScreenState extends State<LoginScreen>
                                               ),
                                             ],
                                           ),
+                                ),
+                              ),
+
+                              // ── Hint akun demo ──────────────────────────
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF3F3F3),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline_rounded,
+                                      color: Colors.grey.shade500,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Expanded(
+                                      child: Text(
+                                        'Demo: username "user" / password "user123"',
+                                        style: TextStyle(
+                                          color: Color(0xFF757575),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
