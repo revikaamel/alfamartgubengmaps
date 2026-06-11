@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen>
   static const Color _redLight = Color(0xFFEF9A9A);
 
   final _formKey = GlobalKey<FormState>();
+  final _userCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
 
@@ -62,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     try {
       await SupabaseService.signIn(
-        email: _emailCtrl.text.trim(),
+        email: _userCtrl.text.trim(),
         password: _passCtrl.text,
       );
       if (!mounted) return;
@@ -70,8 +71,9 @@ class _LoginScreenState extends State<LoginScreen>
         context,
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => const HomePage(),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
+          transitionsBuilder:
+              (_, anim, __, child) =>
+                  FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 500),
         ),
       );

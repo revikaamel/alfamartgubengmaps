@@ -49,10 +49,7 @@ class SupabaseService {
   }
 
   /// Update data tempat berdasarkan id
-  static Future<void> updatePlace(
-    dynamic id,
-    Map<String, dynamic> data,
-  ) async {
+  static Future<void> updatePlace(dynamic id, Map<String, dynamic> data) async {
     await _client.from('places').update(data).eq('id', id);
   }
 
@@ -81,9 +78,12 @@ class SupabaseService {
     }
     final avgRating = total / updatedReviews.length;
 
-    await _client.from('places').update({
-      'reviews': updatedReviews,
-      'rating': double.parse(avgRating.toStringAsFixed(1)),
-    }).eq('id', placeId);
+    await _client
+        .from('places')
+        .update({
+          'reviews': updatedReviews,
+          'rating': double.parse(avgRating.toStringAsFixed(1)),
+        })
+        .eq('id', placeId);
   }
 }
