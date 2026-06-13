@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/supabase_service.dart';
 import 'admin_page.dart';
 
 class AdminLoginPage extends StatefulWidget {
@@ -24,9 +25,7 @@ class _AdminLoginPageState extends State<AdminLoginPage>
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
 
-  // ── Kredensial admin — ganti sesuai kebutuhan ──────────────────────────
-  static const _adminUser = 'admin';
-  static const _adminPass = 'admin123';
+  // Email admin harus terdaftar di Supabase Authentication
 
   @override
   void initState() {
@@ -61,10 +60,24 @@ class _AdminLoginPageState extends State<AdminLoginPage>
       _errorMsg = null;
     });
 
-    await Future.delayed(const Duration(milliseconds: 1000));
+    try {
+      await SupabaseService.signIn(
+        email: _userCtrl.text.trim(),
+        password: _passCtrl.text,
+      );
 
-    if (_userCtrl.text.trim() == _adminUser &&
-        _passCtrl.text == _adminPass) {
+      // Verifikasi bahwa user yang login memang admin
+      final admin = await SupabaseService.isAdmin();
+      if (!admin) {
+        await SupabaseService.signOut();
+        if (!mounted) return;
+        setState(() {
+          _isLoading = false;
+          _errorMsg = 'Akun ini tidak memiliki hak akses admin.';
+        });
+        return;
+      }
+
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -75,10 +88,11 @@ class _AdminLoginPageState extends State<AdminLoginPage>
           transitionDuration: const Duration(milliseconds: 400),
         ),
       );
-    } else {
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMsg = 'Username atau password admin salah.';
+        _errorMsg = 'Email atau password salah.';
       });
     }
   }
@@ -229,18 +243,19 @@ class _AdminLoginPageState extends State<AdminLoginPage>
                               const SizedBox(height: 28),
 
                               // Username
-                              _buildLabel('Username Admin'),
+                              _buildLabel('Email Admin'),
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _userCtrl,
+                                keyboardType: TextInputType.emailAddress,
                                 textInputAction: TextInputAction.next,
                                 decoration: _inputDecoration(
-                                  hint: 'Masukkan username admin',
-                                  icon: Icons.manage_accounts_rounded,
+                                  hint: 'Masukkan email admin',
+                                  icon: Icons.email_outlined,
                                 ),
                                 validator: (v) =>
                                     (v == null || v.trim().isEmpty)
-                                        ? 'Username tidak boleh kosong'
+                                        ? 'Email tidak boleh kosong'
                                         : null,
                               ),
 

@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
 import 'home_page.dart';
-import 'register_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
+class _RegisterScreenState extends State<RegisterScreen>
     with SingleTickerProviderStateMixin {
   static const Color _red = Color(0xFFD32F2F);
   static const Color _redDark = Color(0xFFB71C1C);
@@ -19,8 +18,10 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
 
-  bool _obscure = true;
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
   bool _isLoading = false;
   String? _errorMsg;
 
@@ -33,11 +34,11 @@ class _LoginScreenState extends State<LoginScreen>
     super.initState();
     _animCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
+      duration: const Duration(milliseconds: 600),
     );
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.12),
+      begin: const Offset(0, 0.10),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
@@ -48,10 +49,11 @@ class _LoginScreenState extends State<LoginScreen>
     _animCtrl.dispose();
     _emailCtrl.dispose();
     _passCtrl.dispose();
+    _confirmPassCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -60,13 +62,14 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      await SupabaseService.signIn(
+      await SupabaseService.signUp(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
       );
 
       if (!mounted) return;
-      Navigator.pushReplacement(
+      // Langsung ke HomePage setelah register berhasil
+      Navigator.pushAndRemoveUntil(
         context,
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => const HomePage(),
@@ -74,12 +77,13 @@ class _LoginScreenState extends State<LoginScreen>
               FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 500),
         ),
+        (route) => false,
       );
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMsg = 'Email atau password salah.';
+        _errorMsg = 'Gagal mendaftar. Email mungkin sudah terdaftar.';
       });
     }
   }
@@ -95,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen>
             top: 0,
             left: 0,
             right: 0,
-            height: MediaQuery.of(context).size.height * 0.40,
+            height: MediaQuery.of(context).size.height * 0.38,
             child: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -111,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
 
-          // ── Konten utama ────────────────────────────────────────────────
+          // ── Konten ──────────────────────────────────────────────────────
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnim,
@@ -121,12 +125,35 @@ class _LoginScreenState extends State<LoginScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 28),
                   child: Column(
                     children: [
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 20),
+
+                      // Tombol back
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_back_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
 
                       // ── Logo & judul ───────────────────────────────────
                       Container(
-                        width: 88,
-                        height: 88,
+                        width: 80,
+                        height: 80,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -140,35 +167,33 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         child: const Center(
                           child: Icon(
-                            Icons.store_rounded,
+                            Icons.person_add_rounded,
                             color: _red,
-                            size: 46,
+                            size: 40,
                           ),
                         ),
                       ),
 
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
 
                       const Text(
-                        'Alfamart Maps',
+                        'Daftar Akun',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 0.2,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Temukan Alfamart terdekat di sekitarmu',
+                        'Buat akun untuk menyimpan tempat & ulasan',
                         style: TextStyle(
                           color: _redLight.withValues(alpha: 0.9),
                           fontSize: 13,
-                          fontWeight: FontWeight.w400,
                         ),
                       ),
 
-                      const SizedBox(height: 40),
+                      const SizedBox(height: 32),
 
                       // ── Card form ──────────────────────────────────────
                       Container(
@@ -190,16 +215,16 @@ class _LoginScreenState extends State<LoginScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Masuk',
+                                'Buat Akun',
                                 style: TextStyle(
-                                  fontSize: 26,
+                                  fontSize: 24,
                                   fontWeight: FontWeight.w800,
                                   color: Color(0xFF212121),
                                 ),
                               ),
                               const SizedBox(height: 4),
                               const Text(
-                                'Silakan login untuk melanjutkan',
+                                'Isi data di bawah untuk mendaftar',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: Color(0xFF9E9E9E),
@@ -219,10 +244,15 @@ class _LoginScreenState extends State<LoginScreen>
                                   hint: 'Masukkan email',
                                   icon: Icons.email_outlined,
                                 ),
-                                validator: (v) =>
-                                    (v == null || v.trim().isEmpty)
-                                        ? 'Email tidak boleh kosong'
-                                        : null,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Email tidak boleh kosong';
+                                  }
+                                  if (!v.contains('@')) {
+                                    return 'Format email tidak valid';
+                                  }
+                                  return null;
+                                },
                               ),
 
                               const SizedBox(height: 20),
@@ -232,30 +262,70 @@ class _LoginScreenState extends State<LoginScreen>
                               const SizedBox(height: 8),
                               TextFormField(
                                 controller: _passCtrl,
-                                obscureText: _obscure,
-                                textInputAction: TextInputAction.done,
-                                onFieldSubmitted: (_) => _login(),
+                                obscureText: _obscurePass,
+                                textInputAction: TextInputAction.next,
                                 decoration: _inputDecoration(
-                                  hint: 'Masukkan password',
+                                  hint: 'Minimal 6 karakter',
                                   icon: Icons.lock_outline_rounded,
                                 ).copyWith(
                                   suffixIcon: IconButton(
                                     icon: Icon(
-                                      _obscure
+                                      _obscurePass
                                           ? Icons.visibility_off_outlined
                                           : Icons.visibility_outlined,
                                       color: Colors.grey.shade500,
                                       size: 20,
                                     ),
                                     onPressed: () => setState(
-                                      () => _obscure = !_obscure,
-                                    ),
+                                        () => _obscurePass = !_obscurePass),
                                   ),
                                 ),
-                                validator: (v) =>
-                                    (v == null || v.isEmpty)
-                                        ? 'Password tidak boleh kosong'
-                                        : null,
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) {
+                                    return 'Password tidak boleh kosong';
+                                  }
+                                  if (v.length < 6) {
+                                    return 'Password minimal 6 karakter';
+                                  }
+                                  return null;
+                                },
+                              ),
+
+                              const SizedBox(height: 20),
+
+                              // Konfirmasi Password
+                              _buildLabel('Konfirmasi Password'),
+                              const SizedBox(height: 8),
+                              TextFormField(
+                                controller: _confirmPassCtrl,
+                                obscureText: _obscureConfirm,
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (_) => _register(),
+                                decoration: _inputDecoration(
+                                  hint: 'Ulangi password',
+                                  icon: Icons.lock_outline_rounded,
+                                ).copyWith(
+                                  suffixIcon: IconButton(
+                                    icon: Icon(
+                                      _obscureConfirm
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: Colors.grey.shade500,
+                                      size: 20,
+                                    ),
+                                    onPressed: () => setState(() =>
+                                        _obscureConfirm = !_obscureConfirm),
+                                  ),
+                                ),
+                                validator: (v) {
+                                  if (v == null || v.isEmpty) {
+                                    return 'Konfirmasi password tidak boleh kosong';
+                                  }
+                                  if (v != _passCtrl.text) {
+                                    return 'Password tidak cocok';
+                                  }
+                                  return null;
+                                },
                               ),
 
                               // Error message
@@ -270,16 +340,12 @@ class _LoginScreenState extends State<LoginScreen>
                                     color: _red.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: _red.withValues(alpha: 0.3),
-                                    ),
+                                        color: _red.withValues(alpha: 0.3)),
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(
-                                        Icons.error_outline_rounded,
-                                        color: _red,
-                                        size: 18,
-                                      ),
+                                      const Icon(Icons.error_outline_rounded,
+                                          color: _red, size: 18),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
@@ -298,12 +364,12 @@ class _LoginScreenState extends State<LoginScreen>
 
                               const SizedBox(height: 28),
 
-                              // Tombol login
+                              // Tombol daftar
                               SizedBox(
                                 width: double.infinity,
                                 height: 52,
                                 child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _login,
+                                  onPressed: _isLoading ? null : _register,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: _red,
                                     foregroundColor: Colors.white,
@@ -327,10 +393,11 @@ class _LoginScreenState extends State<LoginScreen>
                                           mainAxisAlignment:
                                               MainAxisAlignment.center,
                                           children: [
-                                            Icon(Icons.login_rounded, size: 20),
+                                            Icon(Icons.person_add_rounded,
+                                                size: 20),
                                             SizedBox(width: 8),
                                             Text(
-                                              'Masuk',
+                                              'Daftar',
                                               style: TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.w700,
@@ -338,41 +405,6 @@ class _LoginScreenState extends State<LoginScreen>
                                             ),
                                           ],
                                         ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              // Tombol Register
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: OutlinedButton(
-                                  onPressed: _isLoading
-                                      ? null
-                                      : () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) =>
-                                                  const RegisterScreen(),
-                                            ),
-                                          );
-                                        },
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: _red,
-                                    side: const BorderSide(color: _red),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Daftar Akun Baru',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
                                 ),
                               ),
                             ],

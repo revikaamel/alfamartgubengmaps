@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../data/places.dart';
+import '../services/supabase_service.dart';
 import 'detail_page.dart';
 
 class SavedPage extends StatefulWidget {
@@ -16,40 +16,75 @@ class _SavedPageState extends State<SavedPage> {
   static const Color _brandRed = Color(0xFFD32F2F);
   static const Color _brandRedLight = Color(0xFFEF5350);
 
+  List<Map<String, dynamic>> _savedPlaces = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedPlaces();
+  }
+
+  Future<void> _loadSavedPlaces() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await SupabaseService.getSavedPlaces();
+      setState(() {
+        _savedPlaces = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat data: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _removePlace(Map<String, dynamic> place, int index) async {
+    try {
+      await SupabaseService.unsavePlace(place['id']);
+      setState(() => _savedPlaces.removeAt(index));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${place['name']} dihapus dari tersimpan'),
+            backgroundColor: _brandRed,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            action: SnackBarAction(
+              label: 'Urungkan',
+              textColor: Colors.white,
+              onPressed: () async {
+                await SupabaseService.savePlace(place['id']);
+                _loadSavedPlaces();
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghapus: $e')),
+        );
+      }
+    }
+  }
+
   String getPhotoPath(String photo) {
-    if (photo.contains("assets/images/")) return photo;
-    return "assets/images/$photo";
+    if (photo.contains('assets/images/')) return photo;
+    return 'assets/images/$photo';
   }
 
   ImageProvider _getImageProvider(String photo) {
-    if (photo.startsWith("/")) {
-      return FileImage(File(photo));
-    }
+    if (photo.startsWith('/')) return FileImage(File(photo));
+    if (photo.startsWith('http')) return NetworkImage(photo);
     return AssetImage(getPhotoPath(photo));
-  }
-
-  void _removePlace(int index) {
-    final removed = savedPlaces[index];
-    setState(() {
-      savedPlaces.removeAt(index);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${removed['name']} dihapus dari tersimpan'),
-        backgroundColor: _brandRed,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        action: SnackBarAction(
-          label: 'Urungkan',
-          textColor: Colors.white,
-          onPressed: () {
-            setState(() {
-              savedPlaces.insert(index, removed);
-            });
-          },
-        ),
-      ),
-    );
   }
 
   @override
@@ -65,9 +100,15 @@ class _SavedPageState extends State<SavedPage> {
             backgroundColor: _brandRed,
             foregroundColor: Colors.white,
             elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _loadSavedPlaces,
+                tooltip: 'Refresh',
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
-              titlePadding:
-                  const EdgeInsets.only(left: 20, bottom: 16),
+              titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
               title: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,9 +122,9 @@ class _SavedPageState extends State<SavedPage> {
                       letterSpacing: 0.3,
                     ),
                   ),
-                  if (savedPlaces.isNotEmpty)
+                  if (_savedPlaces.isNotEmpty)
                     Text(
-                      '${savedPlaces.length} lokasi disimpan',
+                      '${_savedPlaces.length} lokasi disimpan',
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 11,
@@ -106,7 +147,7 @@ class _SavedPageState extends State<SavedPage> {
                     child: Icon(
                       Icons.bookmark_rounded,
                       size: 80,
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                     ),
                   ),
                 ),
@@ -115,18 +156,20 @@ class _SavedPageState extends State<SavedPage> {
           ),
 
           // ── Content ───────────────────────────────────────────────
-          if (savedPlaces.isEmpty)
-            SliverFillRemaining(
-              child: _buildEmptyState(),
+          if (_isLoading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
             )
+          else if (_savedPlaces.isEmpty)
+            SliverFillRemaining(child: _buildEmptyState())
           else
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) =>
-                      _buildPlaceCard(savedPlaces[index], index),
-                  childCount: savedPlaces.length,
+                      _buildPlaceCard(_savedPlaces[index], index),
+                  childCount: _savedPlaces.length,
                 ),
               ),
             ),
@@ -145,7 +188,7 @@ class _SavedPageState extends State<SavedPage> {
             width: 110,
             height: 110,
             decoration: BoxDecoration(
-              color: _brandRed.withOpacity(0.08),
+              color: _brandRed.withValues(alpha: 0.08),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -179,18 +222,16 @@ class _SavedPageState extends State<SavedPage> {
   }
 
   // ── Place Card ─────────────────────────────────────────────────────
-  Widget _buildPlaceCard(Map place, int index) {
-    final rating = double.tryParse(
-          place['rating']?.toString() ?? '0',
-        ) ??
-        0.0;
+  Widget _buildPlaceCard(Map<String, dynamic> place, int index) {
+    final rating = (place['rating'] as num?)?.toDouble() ?? 0.0;
+    final photo = place['photo']?.toString() ?? '';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Dismissible(
-        key: Key(place['name'].toString() + index.toString()),
+        key: Key('saved-${place['id']}'),
         direction: DismissDirection.endToStart,
-        onDismissed: (_) => _removePlace(index),
+        onDismissed: (_) => _removePlace(place, index),
         background: Container(
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20),
@@ -227,35 +268,33 @@ class _SavedPageState extends State<SavedPage> {
                 MaterialPageRoute(
                   builder: (_) => DetailPage(place: place),
                 ),
-              ).then((_) => setState(() {}));
+              ).then((_) => _loadSavedPlaces());
             },
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
                   // Foto
-                  Hero(
-                    tag: 'saved-${place['name']}',
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        width: 68,
-                        height: 68,
-                        child: Image(
-                          image: _getImageProvider(
-                            place['photo'].toString(),
-                          ),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey.shade200,
-                            child: const Icon(
-                              Icons.store_rounded,
-                              color: Colors.grey,
-                              size: 30,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(
+                      width: 68,
+                      height: 68,
+                      child: photo.isEmpty
+                          ? Container(
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.store_rounded,
+                                  color: Colors.grey, size: 30),
+                            )
+                          : Image(
+                              image: _getImageProvider(photo),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.store_rounded,
+                                    color: Colors.grey, size: 30),
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -266,7 +305,7 @@ class _SavedPageState extends State<SavedPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          place['name'].toString(),
+                          place['name']?.toString() ?? '-',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -292,24 +331,18 @@ class _SavedPageState extends State<SavedPage> {
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
                                 color: Colors.amber.shade50,
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.amber.shade200,
-                                ),
+                                border:
+                                    Border.all(color: Colors.amber.shade200),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                    Icons.star_rounded,
-                                    color: Colors.amber,
-                                    size: 14,
-                                  ),
+                                  const Icon(Icons.star_rounded,
+                                      color: Colors.amber, size: 14),
                                   const SizedBox(width: 3),
                                   Text(
                                     rating.toStringAsFixed(1),

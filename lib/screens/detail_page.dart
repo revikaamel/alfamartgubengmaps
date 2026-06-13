@@ -1,8 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-
-import '../data/places.dart';
+import '../services/supabase_service.dart';
 import 'route_page.dart';
 
 class DetailPage extends StatefulWidget {
@@ -17,8 +16,13 @@ class DetailPage extends StatefulWidget {
 class _DetailPageState extends State<DetailPage> {
   static const Color _brandRed = Color(0xFFD32F2F);
 
-  List reviews = [];
-  late double averageRating;
+  List<Map<String, dynamic>> _reviews = [];
+  bool _isSaved = false;
+  bool _hasReviewed = false;
+  bool _loadingReviews = true;
+  bool _savingToggle = false;
+
+  double averageRating = 0.0;
   double userRating = 0.0;
 
   final TextEditingController reviewController = TextEditingController();
@@ -29,8 +33,8 @@ class _DetailPageState extends State<DetailPage> {
   @override
   void initState() {
     super.initState();
-    loadReviews();
-    calculateAverageRating();
+    averageRating = toDouble(widget.place['rating']);
+    _loadAll();
   }
 
   @override
@@ -39,53 +43,137 @@ class _DetailPageState extends State<DetailPage> {
     super.dispose();
   }
 
-  void loadReviews() {
-    reviews = List.from(widget.place['reviews'] ?? []);
+  Future<void> _loadAll() async {
+    await Future.wait([
+      _loadReviews(),
+      _loadSaveStatus(),
+    ]);
   }
 
-  void calculateAverageRating() {
-    if (reviews.isEmpty) {
+  Future<void> _loadReviews() async {
+    try {
+      final reviews =
+          await SupabaseService.getReviews(widget.place['id']);
+      final reviewed = await SupabaseService.hasReviewed(widget.place['id']);
+      if (mounted) {
+        setState(() {
+          _reviews = reviews;
+          _hasReviewed = reviewed;
+          _loadingReviews = false;
+          _recalcAverage();
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loadingReviews = false);
+    }
+  }
+
+  Future<void> _loadSaveStatus() async {
+    try {
+      final saved = await SupabaseService.isSaved(widget.place['id']);
+      if (mounted) setState(() => _isSaved = saved);
+    } catch (_) {}
+  }
+
+  void _recalcAverage() {
+    if (_reviews.isEmpty) {
       averageRating = toDouble(widget.place['rating']);
       return;
     }
-    double total = 0.0;
-    for (var review in reviews) {
-      total += toDouble(review['rating']);
+    double total = 0;
+    for (var r in _reviews) {
+      total += toDouble(r['rating']);
     }
-    averageRating = total / reviews.length;
+    averageRating = total / _reviews.length;
   }
 
-  bool isSaved() => savedPlaces.any(
-        (item) => item['name'] == widget.place['name'],
-      );
+  Future<void> _toggleSave() async {
+    if (_savingToggle) return;
+    setState(() => _savingToggle = true);
 
-  void toggleSave() {
-    setState(() {
-      if (isSaved()) {
-        savedPlaces.removeWhere(
-          (item) => item['name'] == widget.place['name'],
-        );
+    try {
+      if (_isSaved) {
+        await SupabaseService.unsavePlace(widget.place['id']);
+        setState(() => _isSaved = false);
       } else {
-        savedPlaces.add(widget.place);
+        await SupabaseService.savePlace(widget.place['id']);
+        setState(() => _isSaved = true);
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingToggle = false);
+    }
   }
 
-  void addReview() {
+  Future<void> _submitReview() async {
     if (reviewController.text.trim().isEmpty || userRating == 0.0) return;
 
-    setState(() {
-      reviews.add({
-        'text': reviewController.text.trim(),
-        'rating': userRating,
-      });
-      widget.place['reviews'] = reviews;
-      calculateAverageRating();
-    });
+    try {
+      await SupabaseService.addReview(
+        placeId: widget.place['id'],
+        text: reviewController.text.trim(),
+        rating: userRating,
+      );
 
-    reviewController.clear();
-    userRating = 0.0;
-    Navigator.pop(context);
+      reviewController.clear();
+      userRating = 0.0;
+
+      await _loadReviews();
+
+      // Update rating di local place map
+      widget.place['rating'] = averageRating;
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan ulasan: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteReview(String reviewId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Hapus Ulasan'),
+        content: const Text('Yakin ingin menghapus ulasan ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus', style: TextStyle(color: _brandRed)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await SupabaseService.deleteReview(reviewId);
+      await _loadReviews();
+      widget.place['rating'] = averageRating;
+      // Refresh status hasReviewed
+      final reviewed =
+          await SupabaseService.hasReviewed(widget.place['id']);
+      if (mounted) setState(() => _hasReviewed = reviewed);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghapus: $e')),
+        );
+      }
+    }
   }
 
   String getPhotoPath(String photo) {
@@ -95,11 +183,22 @@ class _DetailPageState extends State<DetailPage> {
 
   ImageProvider _getImageProvider(String photo) {
     if (photo.startsWith('/')) return FileImage(File(photo));
+    if (photo.startsWith('http')) return NetworkImage(photo);
     return AssetImage(getPhotoPath(photo));
   }
 
   // ── Bottom sheet tambah ulasan ───────────────────────────────────────────
   void _showReviewSheet() {
+    if (_hasReviewed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kamu sudah pernah memberikan ulasan di tempat ini'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     userRating = 0.0;
     reviewController.clear();
 
@@ -113,10 +212,12 @@ class _DetailPageState extends State<DetailPage> {
             return Container(
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28.0)),
+                borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(28.0)),
               ),
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(builderContext).viewInsets.bottom + 24.0,
+                bottom:
+                    MediaQuery.of(builderContext).viewInsets.bottom + 24.0,
                 top: 8.0,
                 left: 24.0,
                 right: 24.0,
@@ -148,11 +249,8 @@ class _DetailPageState extends State<DetailPage> {
                           color: _brandRed.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12.0),
                         ),
-                        child: const Icon(
-                          Icons.rate_review_rounded,
-                          color: _brandRed,
-                          size: 24.0,
-                        ),
+                        child: const Icon(Icons.rate_review_rounded,
+                            color: _brandRed, size: 24.0),
                       ),
                       const SizedBox(width: 14.0),
                       Column(
@@ -169,9 +267,7 @@ class _DetailPageState extends State<DetailPage> {
                           Text(
                             widget.place['name']?.toString() ?? '',
                             style: const TextStyle(
-                              fontSize: 12.0,
-                              color: Color(0xFF9E9E9E),
-                            ),
+                                fontSize: 12.0, color: Color(0xFF9E9E9E)),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
@@ -181,7 +277,7 @@ class _DetailPageState extends State<DetailPage> {
 
                   const SizedBox(height: 28.0),
 
-                  // Label rating
+                  // Bintang
                   const Text(
                     'Beri Penilaian',
                     style: TextStyle(
@@ -191,25 +287,20 @@ class _DetailPageState extends State<DetailPage> {
                     ),
                   ),
                   const SizedBox(height: 12.0),
-
-                  // Bintang interaktif
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(5, (i) {
                       final double starValue = (i + 1).toDouble();
                       return GestureDetector(
-                        onTap: () {
-                          setSheetState(() => userRating = starValue);
-                        },
-                        child: AnimatedContainer(
+                        onTap: () =>
+                            setSheetState(() => userRating = starValue),
+                        child: AnimatedScale(
+                          scale: userRating >= starValue ? 1.25 : 1.0,
                           duration: const Duration(milliseconds: 200),
                           curve: Curves.easeOutBack,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6.0, vertical: 4.0),
-                          child: AnimatedScale(
-                            scale: userRating >= starValue ? 1.25 : 1.0,
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeOutBack,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6.0, vertical: 4.0),
                             child: Icon(
                               userRating >= starValue
                                   ? Icons.star_rounded
@@ -225,7 +316,6 @@ class _DetailPageState extends State<DetailPage> {
                     }),
                   ),
 
-                  // Label nilai rating
                   const SizedBox(height: 8.0),
                   Center(
                     child: AnimatedSwitcher(
@@ -265,8 +355,7 @@ class _DetailPageState extends State<DetailPage> {
                     maxLines: 3,
                     maxLength: 200,
                     decoration: InputDecoration(
-                      hintText:
-                          'Bagikan pengalamanmu di Alfamart ini...',
+                      hintText: 'Bagikan pengalamanmu di Alfamart ini...',
                       hintStyle: TextStyle(
                           color: Colors.grey.shade400, fontSize: 14.0),
                       filled: true,
@@ -278,13 +367,11 @@ class _DetailPageState extends State<DetailPage> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16.0),
-                        borderSide: const BorderSide(
-                            color: _brandRed, width: 1.5),
+                        borderSide:
+                            const BorderSide(color: _brandRed, width: 1.5),
                       ),
                       counterStyle: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontSize: 11.0,
-                      ),
+                          color: Colors.grey.shade400, fontSize: 11.0),
                     ),
                   ),
 
@@ -310,7 +397,7 @@ class _DetailPageState extends State<DetailPage> {
                           );
                           return;
                         }
-                        addReview();
+                        _submitReview();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _brandRed,
@@ -328,9 +415,7 @@ class _DetailPageState extends State<DetailPage> {
                           Text(
                             'Kirim Ulasan',
                             style: TextStyle(
-                              fontSize: 15.0,
-                              fontWeight: FontWeight.w700,
-                            ),
+                                fontSize: 15.0, fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
@@ -356,6 +441,8 @@ class _DetailPageState extends State<DetailPage> {
   // ── Build utama ──────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final currentUid = SupabaseService.currentUser?.id;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: CustomScrollView(
@@ -367,20 +454,30 @@ class _DetailPageState extends State<DetailPage> {
             backgroundColor: _brandRed,
             foregroundColor: Colors.white,
             actions: [
-              IconButton(
-                icon: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  child: Icon(
-                    isSaved()
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    key: ValueKey<bool>(isSaved()),
-                    color: Colors.white,
-                  ),
-                ),
-                onPressed: toggleSave,
-                tooltip: isSaved() ? 'Hapus dari tersimpan' : 'Simpan',
-              ),
+              _savingToggle
+                  ? const Padding(
+                      padding: EdgeInsets.all(14),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      icon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: Icon(
+                          _isSaved
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded,
+                          key: ValueKey<bool>(_isSaved),
+                          color: Colors.white,
+                        ),
+                      ),
+                      onPressed: _toggleSave,
+                      tooltip: _isSaved ? 'Hapus dari tersimpan' : 'Simpan',
+                    ),
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
@@ -397,7 +494,6 @@ class _DetailPageState extends State<DetailPage> {
                           size: 60.0, color: Colors.grey),
                     ),
                   ),
-                  // Gradient overlay bawah
                   const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -453,9 +549,7 @@ class _DetailPageState extends State<DetailPage> {
                             child: Text(
                               widget.place['address']?.toString() ?? '-',
                               style: const TextStyle(
-                                fontSize: 13.0,
-                                color: Color(0xFF757575),
-                              ),
+                                  fontSize: 13.0, color: Color(0xFF757575)),
                             ),
                           ),
                         ],
@@ -468,8 +562,7 @@ class _DetailPageState extends State<DetailPage> {
                         decoration: BoxDecoration(
                           color: Colors.amber.shade50,
                           borderRadius: BorderRadius.circular(14.0),
-                          border:
-                              Border.all(color: Colors.amber.shade200),
+                          border: Border.all(color: Colors.amber.shade200),
                         ),
                         child: Row(
                           children: [
@@ -488,13 +581,11 @@ class _DetailPageState extends State<DetailPage> {
                             Text(
                               '/ 5.0',
                               style: TextStyle(
-                                fontSize: 14.0,
-                                color: Colors.grey.shade500,
-                              ),
+                                  fontSize: 14.0, color: Colors.grey.shade500),
                             ),
                             const Spacer(),
                             Text(
-                              '${reviews.length} ulasan',
+                              '${_reviews.length} ulasan',
                               style: TextStyle(
                                 fontSize: 12.0,
                                 color: Colors.grey.shade600,
@@ -532,9 +623,13 @@ class _DetailPageState extends State<DetailPage> {
                       const SizedBox(width: 12.0),
                       Expanded(
                         child: _ActionButton(
-                          icon: Icons.rate_review_rounded,
-                          label: 'Tulis Ulasan',
-                          color: const Color(0xFF1565C0),
+                          icon: _hasReviewed
+                              ? Icons.check_circle_rounded
+                              : Icons.rate_review_rounded,
+                          label: _hasReviewed ? 'Sudah Diulas' : 'Tulis Ulasan',
+                          color: _hasReviewed
+                              ? Colors.grey.shade400
+                              : const Color(0xFF1565C0),
                           onTap: _showReviewSheet,
                         ),
                       ),
@@ -566,7 +661,7 @@ class _DetailPageState extends State<DetailPage> {
                           borderRadius: BorderRadius.circular(20.0),
                         ),
                         child: Text(
-                          '${reviews.length}',
+                          '${_reviews.length}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11.0,
@@ -579,10 +674,22 @@ class _DetailPageState extends State<DetailPage> {
                 ),
                 const SizedBox(height: 12.0),
 
-                if (reviews.isEmpty)
+                if (_loadingReviews)
+                  const Center(
+                      child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: CircularProgressIndicator(),
+                  ))
+                else if (_reviews.isEmpty)
                   _buildEmptyReview()
                 else
-                  ...reviews.map((review) => _ReviewCard(review: review)),
+                  ..._reviews.map(
+                    (review) => _ReviewCard(
+                      review: review,
+                      currentUserId: currentUid,
+                      onDelete: () => _deleteReview(review['id'].toString()),
+                    ),
+                  ),
 
                 const SizedBox(height: 32.0),
               ],
@@ -678,15 +785,28 @@ class _ActionButton extends StatelessWidget {
 
 // ── Review Card ───────────────────────────────────────────────────────────
 class _ReviewCard extends StatelessWidget {
-  final dynamic review;
+  final Map<String, dynamic> review;
+  final String? currentUserId;
+  final VoidCallback onDelete;
 
-  const _ReviewCard({required this.review});
+  const _ReviewCard({
+    required this.review,
+    required this.currentUserId,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
     final double rating =
         double.tryParse(review['rating']?.toString() ?? '0') ?? 0.0;
     final int ratingInt = rating.round().clamp(0, 5);
+    final isOwner = review['user_id'] == currentUserId;
+    final email =
+        review['profiles']?['email']?.toString() ?? 'Pengguna Anonim';
+    final displayName = email.contains('@') ? email.split('@').first : email;
+    final createdAt = review['created_at'] != null
+        ? DateTime.tryParse(review['created_at'].toString())
+        : null;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 10.0),
@@ -714,42 +834,61 @@ class _ReviewCard extends StatelessWidget {
                   color: const Color(0xFFD32F2F).withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: Color(0xFFD32F2F),
-                  size: 20.0,
+                child: Center(
+                  child: Text(
+                    displayName.isNotEmpty
+                        ? displayName[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      color: Color(0xFFD32F2F),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 10.0),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Pengguna Anonim',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13.0,
-                      color: Color(0xFF212121),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.0,
+                        color: Color(0xFF212121),
+                      ),
                     ),
-                  ),
-                  // Bintang
-                  Row(
-                    children: List.generate(5, (i) {
-                      return Icon(
-                        i < ratingInt
-                            ? Icons.star_rounded
-                            : Icons.star_outline_rounded,
-                        color: Colors.amber,
-                        size: 14.0,
-                      );
-                    }),
-                  ),
-                ],
+                    Row(
+                      children: [
+                        ...List.generate(
+                          5,
+                          (i) => Icon(
+                            i < ratingInt
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: Colors.amber,
+                            size: 14.0,
+                          ),
+                        ),
+                        if (createdAt != null) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatDate(createdAt),
+                            style: TextStyle(
+                                fontSize: 10, color: Colors.grey.shade400),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              const Spacer(),
+              // Badge rating
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8.0, vertical: 3.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
                 decoration: BoxDecoration(
                   color: Colors.amber.shade50,
                   borderRadius: BorderRadius.circular(8.0),
@@ -763,6 +902,18 @@ class _ReviewCard extends StatelessWidget {
                   ),
                 ),
               ),
+              // Tombol hapus (hanya untuk pemilik review)
+              if (isOwner) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.red, size: 18),
+                  onPressed: onDelete,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Hapus ulasan',
+                ),
+              ],
             ],
           ),
           if (review['text']?.toString().isNotEmpty == true) ...[
@@ -779,5 +930,9 @@ class _ReviewCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.day}/${dt.month}/${dt.year}';
   }
 }

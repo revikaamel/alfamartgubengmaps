@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../data/places.dart';
+import '../services/supabase_service.dart';
 
 class AddPlacePage extends StatefulWidget {
 
@@ -16,72 +15,51 @@ class AddPlacePage extends StatefulWidget {
 class _AddPlacePageState
     extends State<AddPlacePage> {
 
-  final nameController =
-      TextEditingController();
+  final nameController = TextEditingController();
+  final addressController = TextEditingController();
+  final latController = TextEditingController();
+  final lngController = TextEditingController();
+  final photoController = TextEditingController();
 
-  final addressController =
-      TextEditingController();
+  bool _isLoading = false;
 
-  final latController =
-      TextEditingController();
-
-  final lngController =
-      TextEditingController();
-
-  final photoController =
-      TextEditingController();
-
-  double toDouble(
-    String value,
-  ) {
-
-    return double.tryParse(
-          value,
-        ) ??
-        0;
+  double toDouble(String value) {
+    return double.tryParse(value) ?? 0;
   }
 
- Future<void> savePlace() async {
+  Future<void> savePlace() async {
+    if (nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nama tempat tidak boleh kosong')),
+      );
+      return;
+    }
 
-  Map<String, dynamic> place = {
+    setState(() => _isLoading = true);
 
-    "id":
-        DateTime.now()
-            .millisecondsSinceEpoch,
+    try {
+      final place = {
+        'name': nameController.text.trim(),
+        'address': addressController.text.trim(),
+        'lat': toDouble(latController.text),
+        'lng': toDouble(lngController.text),
+        'photo': photoController.text.trim(),
+        'rating': 0.0,
+        'reviews': [],
+      };
 
-    "name":
-        nameController.text,
+      await SupabaseService.addPlace(place);
 
-    "address":
-        addressController.text,
-
-    "lat":
-        toDouble(
-          latController.text,
-        ),
-
-    "lng":
-        toDouble(
-          lngController.text,
-        ),
-
-    "photo":
-        photoController.text,
-
-    "rating": 0,
-
-    "reviews": ""
-  };
-
-  await ApiService.addPlace(
-    place,
-  );
-
-  Navigator.pop(
-    context,
-    true,
-  );
-}
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan: $e')),
+      );
+    }
+  }
 
   Widget buildField(
     String label,
@@ -174,24 +152,17 @@ class _AddPlacePageState
             ),
 
             SizedBox(
-
-              width:
-                  double.infinity,
-
+              width: double.infinity,
               height: 50,
-
-              child:
-                  ElevatedButton(
-
-                onPressed: () async {
-
-                  await savePlace();
-                },
-
-                child:
-                    const Text(
-                  "Simpan",
-                ),
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : savePlace,
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Simpan'),
               ),
             )
           ],
