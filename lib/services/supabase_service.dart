@@ -29,10 +29,7 @@ class SupabaseService {
     required String email,
     required String password,
   }) async {
-    return await _client.auth.signUp(
-      email: email,
-      password: password,
-    );
+    return await _client.auth.signUp(email: email, password: password);
   }
 
   /// Logout
@@ -126,12 +123,13 @@ class SupabaseService {
   static Future<bool> isSaved(dynamic placeId) async {
     final uid = currentUser?.id;
     if (uid == null) return false;
-    final response = await _client
-        .from('saved_places')
-        .select('id')
-        .eq('user_id', uid)
-        .eq('place_id', placeId)
-        .maybeSingle();
+    final response =
+        await _client
+            .from('saved_places')
+            .select('id')
+            .eq('user_id', uid)
+            .eq('place_id', placeId)
+            .maybeSingle();
     return response != null;
   }
 
@@ -151,12 +149,13 @@ class SupabaseService {
   static Future<bool> hasReviewed(dynamic placeId) async {
     final uid = currentUser?.id;
     if (uid == null) return false;
-    final response = await _client
-        .from('reviews')
-        .select('id')
-        .eq('user_id', uid)
-        .eq('place_id', placeId)
-        .maybeSingle();
+    final response =
+        await _client
+            .from('reviews')
+            .select('id')
+            .eq('user_id', uid)
+            .eq('place_id', placeId)
+            .maybeSingle();
     return response != null;
   }
 
@@ -183,13 +182,16 @@ class SupabaseService {
         .select('rating')
         .eq('place_id', placeId);
 
-    final total = (reviews as List)
-        .fold<double>(0, (sum, r) => sum + (r['rating'] as num).toDouble());
+    final total = (reviews as List).fold<double>(
+      0,
+      (sum, r) => sum + (r['rating'] as num).toDouble(),
+    );
     final avg = total / reviews.length;
 
-    await _client.from('places').update({
-      'rating': double.parse(avg.toStringAsFixed(1)),
-    }).eq('id', placeId);
+    await _client
+        .from('places')
+        .update({'rating': double.parse(avg.toStringAsFixed(1))})
+        .eq('id', placeId);
   }
 
   /// Hapus review milik sendiri
