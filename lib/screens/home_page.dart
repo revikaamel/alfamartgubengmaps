@@ -10,6 +10,7 @@ import '../data/places.dart';
 import 'detail_page.dart';
 import 'saved_page.dart';
 import 'login_screen.dart';
+import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -29,6 +30,7 @@ class _HomePageState extends State<HomePage> {
   bool isLoading = true;
   bool mapReady = false;
   bool _isAdmin = false;
+  bool _isLoggedIn = false;
 
   double toDouble(dynamic value) {
     return double.tryParse(value.toString()) ?? 0;
@@ -54,8 +56,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _checkAdmin() async {
-    final admin = await SupabaseService.isAdmin();
-    if (mounted) setState(() => _isAdmin = admin);
+    final loggedIn = SupabaseService.currentUser != null;
+    final admin = loggedIn ? await SupabaseService.isAdmin() : false;
+    if (mounted) {
+      setState(() {
+        _isLoggedIn = loggedIn;
+        _isAdmin = admin;
+      });
+    }
   }
 
   Future<void> loadData() async {
@@ -123,11 +131,17 @@ class _HomePageState extends State<HomePage> {
 
     await SupabaseService.signOut();
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
+    setState(() {
+      _isLoggedIn = false;
+      _isAdmin = false;
+    });
+  }
+
+  void _goToLogin() {
+    Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+    ).then((_) => _checkAdmin());
   }
 
   double calculateDistance(double lat, double lng) {
@@ -143,6 +157,8 @@ class _HomePageState extends State<HomePage> {
     if (photo.contains('assets/images/')) return photo;
     return 'assets/images/$photo';
   }
+
+  int _navIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -330,34 +346,18 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ],
-
-                const SizedBox(width: 10),
-
-                // Logout button
-                GestureDetector(
-                  onTap: _logout,
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.logout_rounded,
-                        color: Color(0xFFD32F2F)),
-                  ),
-                ),
               ],
             ),
           ),
 
-          // ── Bottom list ───────────────────────────────────────────────────
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
+          // ── Bottom list (hanya muncul saat ada pencarian) ────────────────
+          if (search.isNotEmpty)
+            Positioned(
+              bottom: 80,
+              left: 0,
+              right: 0,
             child: Container(
-              height: 320,
+              height: 260,
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
@@ -365,66 +365,113 @@ class _HomePageState extends State<HomePage> {
                   topRight: Radius.circular(25),
                 ),
               ),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredPlaces.length,
-                      itemBuilder: (context, index) {
-                        var place = filteredPlaces[index];
-                        double distance = calculateDistance(
-                          toDouble(place['lat']),
-                          toDouble(place['lng']),
-                        );
+              child: ListView.builder(
+                padding: const EdgeInsets.only(top: 8, bottom: 8),
+                itemCount: filteredPlaces.length,
+                itemBuilder: (context, index) {
+                  var place = filteredPlaces[index];
+                  double distance = calculateDistance(
+                    toDouble(place['lat']),
+                    toDouble(place['lng']),
+                  );
 
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundImage:
-                                place['photo'].toString().startsWith('/')
-                                    ? FileImage(File(place['photo']))
-                                    : AssetImage(getPhotoPath(place['photo']))
-                                        as ImageProvider,
-                          ),
-                          title: Text(place['name']),
-                          subtitle: Text(
-                            '⭐ ${place['rating']} • '
-                            '${(distance / 1000).toStringAsFixed(1)} km',
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.route),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => DetailPage(place: place),
-                                ),
-                              );
-                            },
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundImage:
+                          place['photo'].toString().startsWith('/')
+                              ? FileImage(File(place['photo']))
+                              : AssetImage(getPhotoPath(place['photo']))
+                                  as ImageProvider,
+                    ),
+                    title: Text(place['name']),
+                    subtitle: Text(
+                      '⭐ ${place['rating']} • '
+                      '${(distance / 1000).toStringAsFixed(1)} km',
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.route),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DetailPage(place: place),
                           ),
                         );
                       },
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(15),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.bookmark),
-                        label: const Text('Tersimpan'),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SavedPage(),
-                            ),
-                          );
-                        },
-                      ),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          // ── Floating Bottom Nav ───────────────────────────────────────────
+          Positioned(
+            bottom: 16,
+            left: 24,
+            right: 24,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(32),
+              child: Container(
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    // Peta
+                    _NavItem(
+                      icon: Icons.map_rounded,
+                      label: 'Peta',
+                      selected: _navIndex == 0,
+                      onTap: () => setState(() => _navIndex = 0),
+                    ),
+
+                    // Tersimpan
+                    _NavItem(
+                      icon: Icons.bookmark_rounded,
+                      label: 'Tersimpan',
+                      selected: _navIndex == 1,
+                      onTap: () {
+                        setState(() => _navIndex = 1);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SavedPage(),
+                          ),
+                        ).then((_) => setState(() => _navIndex = 0));
+                      },
+                    ),
+
+                    // Profil
+                    _NavItem(
+                      icon: Icons.person_rounded,
+                      label: 'Profil',
+                      selected: _navIndex == 2,
+                      onTap: () {
+                        setState(() => _navIndex = 2);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfilePage(),
+                          ),
+                        ).then((_) => setState(() {
+                          _navIndex = 0;
+                          _checkAdmin(); // refresh status login setelah kembali
+                        }));
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -433,3 +480,58 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
+
+// ── Helper widget nav item ────────────────────────────────────────────────────
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const red = Color(0xFFD32F2F);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 80,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: selected ? red.withValues(alpha: 0.12) : Colors.transparent,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(
+                icon,
+                color: selected ? red : Colors.grey.shade500,
+                size: 24,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? red : Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../services/supabase_service.dart';
 import 'detail_page.dart';
+import 'login_screen.dart';
 
 class SavedPage extends StatefulWidget {
   const SavedPage({super.key});
@@ -18,11 +19,14 @@ class _SavedPageState extends State<SavedPage> {
 
   List<Map<String, dynamic>> _savedPlaces = [];
   bool _isLoading = true;
+  bool _isLoggedIn = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedPlaces();
+    _isLoggedIn = SupabaseService.currentUser != null;
+    if (_isLoggedIn) _loadSavedPlaces();
+    else setState(() => _isLoading = false);
   }
 
   Future<void> _loadSavedPlaces() async {
@@ -156,7 +160,9 @@ class _SavedPageState extends State<SavedPage> {
           ),
 
           // ── Content ───────────────────────────────────────────────
-          if (_isLoading)
+          if (!_isLoggedIn)
+            SliverFillRemaining(child: _buildGuestState())
+          else if (_isLoading)
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),
             )
@@ -174,6 +180,82 @@ class _SavedPageState extends State<SavedPage> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  // ── Guest State ───────────────────────────────────────────────────
+  Widget _buildGuestState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 36),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                color: _brandRed.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.lock_outline_rounded,
+                size: 52,
+                color: _brandRed,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Anda harus login untuk melihat destinasi yang disimpan',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF424242),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Simpan lokasi Alfamart favoritmu dan akses kapan saja.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF9E9E9E),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.login_rounded),
+                label: const Text(
+                  'Masuk',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _brandRed,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LoginScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
