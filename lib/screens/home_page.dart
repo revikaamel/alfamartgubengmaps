@@ -30,6 +30,9 @@ class _HomePageState extends State<HomePage> {
   bool isLoading = true;
   bool mapReady = false;
   bool _isAdmin = false;
+  bool _isLoggedIn = false;
+  bool _locationReady = false;
+  int _navIndex = 0;
 
   double toDouble(dynamic value) {
     return double.tryParse(value.toString()) ?? 0;
@@ -46,9 +49,13 @@ class _HomePageState extends State<HomePage> {
   Future<void> _checkLoginStatus() async {
     final user = SupabaseService.currentUser;
     if (user != null) {
-      setState(() => _isLoggedIn = true);
       final admin = await SupabaseService.isAdmin();
-      if (mounted) setState(() => _isAdmin = admin);
+      if (mounted) {
+        setState(() {
+          _isLoggedIn = true;
+          _isAdmin = admin;
+        });
+      }
     }
   }
 
@@ -62,19 +69,21 @@ class _HomePageState extends State<HomePage> {
         permission = await Geolocator.requestPermission();
       }
       if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever)
+          permission == LocationPermission.deniedForever) {
         return;
+      }
 
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      setState(() {
-        currentLocation = LatLng(position.latitude, position.longitude);
-        _locationReady = true;
-      });
-
-      if (mapReady) mapController.move(currentLocation, 15);
+      if (mounted) {
+        setState(() {
+          currentLocation = LatLng(position.latitude, position.longitude);
+          _locationReady = true;
+        });
+        if (mapReady) mapController.move(currentLocation, 15);
+      }
 
       Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
@@ -88,12 +97,9 @@ class _HomePageState extends State<HomePage> {
           });
         }
       });
-    });
-  }
-
-  Future<void> _checkAdmin() async {
-    final admin = await SupabaseService.isAdmin();
-    if (mounted) setState(() => _isAdmin = admin);
+    } catch (e) {
+      debugPrint('ERROR LOCATION: $e');
+    }
   }
 
   Future<void> loadData() async {
@@ -108,38 +114,6 @@ class _HomePageState extends State<HomePage> {
       debugPrint('ERROR LOAD DATA: $e');
       setState(() => isLoading = false);
     }
-  }
-
-  Future<void> _logout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder:
-          (_) => AlertDialog(
-            title: const Text('Logout Admin'),
-            content: const Text('Yakin ingin keluar dari akun admin?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Batal'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  'Logout',
-                  style: TextStyle(color: Color(0xFFD32F2F)),
-                ),
-              ),
-            ],
-          ),
-    );
-    if (confirm != true) return;
-    await SupabaseService.signOut();
-    if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
   }
 
   double calculateDistance(double lat, double lng) {
@@ -166,12 +140,11 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    List filteredPlaces =
-        places.where((place) {
-          return place['name'].toString().toLowerCase().contains(
+    List filteredPlaces = places.where((place) {
+      return place['name'].toString().toLowerCase().contains(
             search.toLowerCase(),
           );
-        }).toList();
+    }).toList();
 
     if (filterType == 'rating') {
       filteredPlaces.sort(
@@ -180,27 +153,19 @@ class _HomePageState extends State<HomePage> {
     }
     if (filterType == 'distance') {
       filteredPlaces.sort((a, b) {
-        double distA = calculateDistance(
-          toDouble(a['lat']),
-          toDouble(a['lng']),
-        );
-        double distB = calculateDistance(
-          toDouble(b['lat']),
-          toDouble(b['lng']),
-        );
+        double distA =
+            calculateDistance(toDouble(a['lat']), toDouble(a['lng']));
+        double distB =
+            calculateDistance(toDouble(b['lat']), toDouble(b['lng']));
         return distA.compareTo(distB);
       });
     }
     if (filterType == 'farthest') {
       filteredPlaces.sort((a, b) {
-        double distA = calculateDistance(
-          toDouble(a['lat']),
-          toDouble(a['lng']),
-        );
-        double distB = calculateDistance(
-          toDouble(b['lat']),
-          toDouble(b['lng']),
-        );
+        double distA =
+            calculateDistance(toDouble(a['lat']), toDouble(a['lng']));
+        double distB =
+            calculateDistance(toDouble(b['lat']), toDouble(b['lng']));
         return distB.compareTo(distA);
       });
     }
@@ -208,7 +173,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: Stack(
         children: [
-          // ── PETA ──────────────────────────────────────────────────────
+          // ── PETA ──────────────────────────────────────────────────────────
           FlutterMap(
             mapController: mapController,
             options: MapOptions(
@@ -228,13 +193,14 @@ class _HomePageState extends State<HomePage> {
               ),
               MarkerLayer(
                 markers: [
+                  // Lokasi user
                   Marker(
                     point: currentLocation,
                     width: 48,
                     height: 48,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.2),
+                        color: Colors.blue.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: const Center(
@@ -242,6 +208,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                   ),
+                  // Marker Alfamart
                   ...filteredPlaces.map((place) {
                     return Marker(
                       point: LatLng(
@@ -251,13 +218,12 @@ class _HomePageState extends State<HomePage> {
                       width: 44,
                       height: 44,
                       child: GestureDetector(
-                        onTap:
-                            () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DetailPage(place: place),
-                              ),
-                            ),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DetailPage(place: place),
+                          ),
+                        ),
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -268,7 +234,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
+                                color: Colors.black.withValues(alpha: 0.2),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -288,13 +254,14 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
 
-          // ── TOP BAR ───────────────────────────────────────────────────
+          // ── TOP BAR ───────────────────────────────────────────────────────
           Positioned(
             top: 50,
             left: 15,
             right: 15,
             child: Row(
               children: [
+                // Search box
                 Expanded(
                   child: Container(
                     height: 52,
@@ -303,7 +270,7 @@ class _HomePageState extends State<HomePage> {
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.12),
+                          color: Colors.black.withValues(alpha: 0.12),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -321,21 +288,28 @@ class _HomePageState extends State<HomePage> {
                           color: Colors.grey[400],
                           fontSize: 14,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 15,
-                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 15),
                       ),
                       onChanged: (value) => setState(() => search = value),
                     ),
                   ),
                 ),
+
                 const SizedBox(width: 10),
 
-                // Filter
+                // Filter button
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: IconButton(
                     icon: const Icon(Icons.tune),
@@ -400,138 +374,142 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ],
-
-                const SizedBox(width: 10),
-
-                // Logout button
-                GestureDetector(
-                  onTap: _logout,
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.logout_rounded,
-                        color: Color(0xFFD32F2F)),
-                  ),
-                ),
               ],
             ),
           ),
 
-          // ── Bottom list ───────────────────────────────────────────────────
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 260,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(25),
-                  topRight: Radius.circular(25),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 12,
-                    offset: Offset(0, -3),
+          // ── Bottom list (hanya muncul saat ada pencarian) ─────────────────
+          if (search.isNotEmpty)
+            Positioned(
+              bottom: 80,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 260,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(25),
+                    topRight: Radius.circular(25),
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: filteredPlaces.length,
-                      itemBuilder: (context, index) {
-                        var place = filteredPlaces[index];
-                        double distance = calculateDistance(
-                          toDouble(place['lat']),
-                          toDouble(place['lng']),
-                        );
-
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundImage:
-                                place['photo'].toString().startsWith('/')
-                                    ? FileImage(File(place['photo']))
-                                    : AssetImage(getPhotoPath(place['photo']))
-                                        as ImageProvider,
-                          ),
-                          title: Text(place['name']),
-                          subtitle: Text(
-                            '⭐ ${place['rating']} • '
-                            '${(distance / 1000).toStringAsFixed(1)} km',
-                          ),
-                          trailing: IconButton(
-                            icon: const Icon(Icons.route),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => DetailPage(place: place),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 12,
+                      offset: Offset(0, -3),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(15),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.bookmark),
-                        label: const Text('Tersimpan'),
+                  ],
+                ),
+                child: ListView.builder(
+                  padding: const EdgeInsets.only(top: 8, bottom: 8),
+                  itemCount: filteredPlaces.length,
+                  itemBuilder: (context, index) {
+                    var place = filteredPlaces[index];
+                    double distance = calculateDistance(
+                      toDouble(place['lat']),
+                      toDouble(place['lng']),
+                    );
+
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundImage:
+                            place['photo'].toString().startsWith('/')
+                                ? FileImage(File(place['photo']))
+                                : AssetImage(getPhotoPath(place['photo']))
+                                    as ImageProvider,
+                      ),
+                      title: Text(place['name']),
+                      subtitle: Text(
+                        '⭐ ${place['rating']} • '
+                        '${(distance / 1000).toStringAsFixed(1)} km',
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.route),
                         onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const SavedPage(),
+                              builder: (_) => DetailPage(place: place),
                             ),
                           );
                         },
                       ),
-                    ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+          // ── Floating Bottom Nav ───────────────────────────────────────────
+          Positioned(
+            bottom: 16,
+            left: 24,
+            right: 24,
+            child: Container(
+              height: 64,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(32),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  // Peta
+                  _NavItem(
+                    icon: Icons.map_rounded,
+                    label: 'Peta',
+                    selected: _navIndex == 0,
+                    onTap: () => setState(() => _navIndex = 0),
+                  ),
+
+                  // Tersimpan
+                  _NavItem(
+                    icon: Icons.bookmark_rounded,
+                    label: 'Tersimpan',
+                    selected: _navIndex == 1,
+                    onTap: () {
+                      setState(() => _navIndex = 1);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SavedPage(),
+                        ),
+                      ).then((_) => setState(() => _navIndex = 0));
+                    },
+                  ),
+
+                  // Profil
+                  _NavItem(
+                    icon: Icons.person_rounded,
+                    label: 'Profil',
+                    selected: _navIndex == 2,
+                    onTap: () {
+                      setState(() => _navIndex = 2);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ProfilePage(),
+                        ),
+                      ).then((_) {
+                        if (mounted) {
+                          setState(() => _navIndex = 0);
+                          _checkLoginStatus();
+                        }
+                      });
+                    },
                   ),
                 ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _topButton({
-    required IconData icon,
-    required VoidCallback onTap,
-    Color? color,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Icon(icon, color: color ?? const Color(0xFF757575), size: 22),
       ),
     );
   }
@@ -564,9 +542,12 @@ class _NavItem extends StatelessWidget {
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: selected ? red.withValues(alpha: 0.12) : Colors.transparent,
+                color: selected
+                    ? red.withValues(alpha: 0.12)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -580,7 +561,8 @@ class _NavItem extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight:
+                    selected ? FontWeight.w600 : FontWeight.w400,
                 color: selected ? red : Colors.grey.shade500,
               ),
             ),
@@ -590,4 +572,3 @@ class _NavItem extends StatelessWidget {
     );
   }
 }
-
