@@ -1,31 +1,54 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_maps_flutter/google_maps_flutter.dart'; // Hanya Google Maps
+
+// ── Google Maps Routes API Key ─────────────────────────────────────────────
+const String _googleApiKey = 'AIzaSyA4wuwGE08F5TTnQ-20GMWEZtSu17wD3Kw';
 
 // ── Konfigurasi kendaraan ──────────────────────────────────────────────────
 class _VehicleOption {
   final String label;
   final IconData icon;
-  final String profile;
+  final String googleMode;
   final double speedKph;
 
   const _VehicleOption({
     required this.label,
     required this.icon,
-    required this.profile,
+    required this.googleMode,
     required this.speedKph,
   });
 }
 
 final List<_VehicleOption> _vehicles = [
-  const _VehicleOption(label: 'Motor',      icon: Icons.two_wheeler,     profile: 'driving', speedKph: 40.0),
-  const _VehicleOption(label: 'Mobil',      icon: Icons.directions_car,  profile: 'driving', speedKph: 30.0),
-  const _VehicleOption(label: 'Sepeda',     icon: Icons.directions_bike, profile: 'cycling', speedKph: 15.0),
-  const _VehicleOption(label: 'Jalan Kaki', icon: Icons.directions_walk, profile: 'foot',    speedKph: 5.0),
+  const _VehicleOption(
+    label: 'Motor',
+    icon: Icons.two_wheeler,
+    googleMode: 'TWO_WHEELER',
+    speedKph: 40.0,
+  ),
+  const _VehicleOption(
+    label: 'Mobil',
+    icon: Icons.directions_car,
+    googleMode: 'DRIVE',
+    speedKph: 30.0,
+  ),
+  const _VehicleOption(
+    label: 'Sepeda',
+    icon: Icons.directions_bike,
+    googleMode: 'BICYCLE',
+    speedKph: 15.0,
+  ),
+  const _VehicleOption(
+    label: 'Jalan Kaki',
+    icon: Icons.directions_walk,
+    googleMode: 'WALK',
+    speedKph: 5.0,
+  ),
 ];
 
 // ── Widget utama ──────────────────────────────────────────────────────────
@@ -41,8 +64,9 @@ class _RoutePageState extends State<RoutePage>
     with SingleTickerProviderStateMixin {
   static const Color _brandRed = Color(0xFFD32F2F);
 
-  final MapController mapController = MapController();
-  LatLng currentLocation = LatLng(-7.265, 112.752);
+  // Controller khusus Google Maps
+  GoogleMapController? mapController;
+  LatLng currentLocation = const LatLng(-7.265, 112.752);
 
   int _selectedIndex = 0;
   List<LatLng> routePoints = [];
@@ -54,8 +78,7 @@ class _RoutePageState extends State<RoutePage>
 
   _VehicleOption get _currentVehicle => _vehicles[_selectedIndex];
 
-  double toDouble(dynamic v) =>
-      double.tryParse(v?.toString() ?? '') ?? 0.0;
+  double toDouble(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0.0;
 
   @override
   void initState() {
@@ -90,7 +113,7 @@ class _RoutePageState extends State<RoutePage>
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() => isLoading = false);
+        if (mounted) setState(() => isLoading = false);
         return;
       }
 
@@ -100,38 +123,69 @@ class _RoutePageState extends State<RoutePage>
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        setState(() => isLoading = false);
+        if (mounted) setState(() => isLoading = false);
         return;
       }
 
       final Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
       );
-      currentLocation = LatLng(position.latitude, position.longitude);
+
+      if (mounted) {
+        setState(() {
+          currentLocation = LatLng(position.latitude, position.longitude);
+        });
+      }
     } catch (e) {
       debugPrint('Location error: $e');
     }
     await _getRoute();
   }
 
-  // ── Ambil rute OSRM ──────────────────────────────────────────────────────
+  // ── Ambil rute via Google Routes API (v2) ───────────────────────────────
   Future<void> _getRoute() async {
     if (!mounted) return;
     setState(() => isLoading = true);
     _animCtrl.reset();
 
     try {
-      final double lat = toDouble(widget.place['lat']);
-      final double lng = toDouble(widget.place['lng']);
-      final String profile = _currentVehicle.profile;
+      final double destLat = toDouble(widget.place['lat']);
+      final double destLng = toDouble(widget.place['lng']);
+      final String travelMode = _currentVehicle.googleMode;
 
-      final String url =
-          'https://router.project-osrm.org/route/v1/$profile/'
-          '${currentLocation.longitude},${currentLocation.latitude};'
-          '$lng,$lat'
-          '?overview=full&geometries=geojson';
+      const String url =
+          'https://routes.googleapis.com/directions/v2:computeRoutes';
 
-      final response = await http.get(Uri.parse(url));
+      final Map<String, dynamic> body = {
+        'origin': {
+          'location': {
+            'latLng': {
+              'latitude': currentLocation.latitude,
+              'longitude': currentLocation.longitude,
+            },
+          },
+        },
+        'destination': {
+          'location': {
+            'latLng': {'latitude': destLat, 'longitude': destLng},
+          },
+        },
+        'travelMode': travelMode,
+        'polylineQuality': 'OVERVIEW',
+        'polylineEncoding': 'ENCODED_POLYLINE',
+        'languageCode': 'id',
+      };
+
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': _googleApiKey,
+          'X-Goog-FieldMask':
+              'routes.polyline.encodedPolyline,routes.duration,routes.distanceMeters',
+        },
+        body: jsonEncode(body),
+      );
 
       if (!mounted) return;
 
@@ -142,25 +196,45 @@ class _RoutePageState extends State<RoutePage>
         final List<dynamic>? routes = data['routes'] as List<dynamic>?;
 
         if (routes != null && routes.isNotEmpty) {
-          final List<dynamic> coordinates =
-              (routes[0] as Map<String, dynamic>)['geometry']
-                  ['coordinates'] as List<dynamic>;
+          final String encodedPolyline =
+              (routes[0] as Map<String, dynamic>)['polyline']['encodedPolyline']
+                  as String;
 
-          final List<LatLng> points = [];
-          for (final dynamic p in coordinates) {
-            final List<dynamic> coord = p as List<dynamic>;
-            final double lon = (coord[0] as num).toDouble();
-            final double latCoord = (coord[1] as num).toDouble();
-            points.add(LatLng(latCoord, lon));
-          }
+          final List<PointLatLng> decoded = PolylinePoints().decodePolyline(
+            encodedPolyline,
+          );
+
+          final List<LatLng> points =
+              decoded.map((p) => LatLng(p.latitude, p.longitude)).toList();
 
           setState(() {
             routePoints = points;
             isLoading = false;
           });
 
-          if (points.isNotEmpty) {
-            mapController.move(currentLocation, 14.0);
+          // Menggerakkan kamera Google Maps agar pas dengan rute
+          if (points.isNotEmpty && mapController != null) {
+            double minLat = points.first.latitude;
+            double maxLat = points.first.latitude;
+            double minLng = points.first.longitude;
+            double maxLng = points.first.longitude;
+
+            for (var p in points) {
+              if (p.latitude < minLat) minLat = p.latitude;
+              if (p.latitude > maxLat) maxLat = p.latitude;
+              if (p.longitude < minLng) minLng = p.longitude;
+              if (p.longitude > maxLng) maxLng = p.longitude;
+            }
+
+            mapController!.animateCamera(
+              CameraUpdate.newLatLngBounds(
+                LatLngBounds(
+                  southwest: LatLng(minLat, minLng),
+                  northeast: LatLng(maxLat, maxLng),
+                ),
+                50.0, // padding
+              ),
+            );
           }
 
           _animCtrl.forward();
@@ -168,7 +242,18 @@ class _RoutePageState extends State<RoutePage>
           setState(() => isLoading = false);
         }
       } else {
-        setState(() => isLoading = false);
+        debugPrint('Routes API Error ${response.statusCode}: ${response.body}');
+        if (mounted) {
+          final Map<String, dynamic> err =
+              jsonDecode(response.body) as Map<String, dynamic>;
+          final String msg =
+              (err['error']?['message'] as String?) ??
+              'Gagal ambil rute (${response.statusCode})';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+          );
+          setState(() => isLoading = false);
+        }
       }
     } catch (e) {
       debugPrint('Route error: $e');
@@ -203,6 +288,34 @@ class _RoutePageState extends State<RoutePage>
   // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    // Set Polyline untuk digambar di Google Maps
+    Set<Polyline> mapPolylines = {};
+    if (routePoints.isNotEmpty) {
+      mapPolylines.add(
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: routePoints,
+          color: _brandRed,
+          width: 5,
+        ),
+      );
+    }
+
+    // Set Marker tujuan
+    Set<Marker> mapMarkers = {
+      Marker(
+        markerId: const MarkerId('destination'),
+        position: LatLng(
+          toDouble(widget.place['lat']),
+          toDouble(widget.place['lng']),
+        ),
+        infoWindow: InfoWindow(
+          title: widget.place['name']?.toString() ?? 'Alfamart',
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      ),
+    };
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: Column(
@@ -211,94 +324,24 @@ class _RoutePageState extends State<RoutePage>
           Expanded(
             child: Stack(
               children: [
-                FlutterMap(
-                  mapController: mapController,
-                  options: MapOptions(
-                    initialCenter: currentLocation,
-                    initialZoom: 14.0,
+                GoogleMap(
+                  initialCameraPosition: CameraPosition(
+                    target: currentLocation,
+                    zoom: 14.0,
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName:
-                          'com.example.alfamart_gubeng_maps',
-                    ),
-                    if (routePoints.isNotEmpty)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: routePoints,
-                            strokeWidth: 5.0,
-                            color: _brandRed,
-                          ),
-                        ],
-                      ),
-                    MarkerLayer(
-                      markers: [
-                        // Marker posisi saat ini
-                        Marker(
-                          point: currentLocation,
-                          width: 44.0,
-                          height: 44.0,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.blue,
-                              shape: BoxShape.circle,
-                              border:
-                                  Border.all(color: Colors.white, width: 3.0),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 6.0,
-                                  offset: Offset(0.0, 2.0),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.my_location,
-                              color: Colors.white,
-                              size: 20.0,
-                            ),
-                          ),
-                        ),
-                        // Marker tujuan
-                        Marker(
-                          point: LatLng(
-                            toDouble(widget.place['lat']),
-                            toDouble(widget.place['lng']),
-                          ),
-                          width: 40.0,
-                          height: 40.0,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: _brandRed,
-                              shape: BoxShape.circle,
-                              border:
-                                  Border.all(color: Colors.white, width: 2.5),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 6.0,
-                                  offset: Offset(0.0, 2.0),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.store_rounded,
-                              color: Colors.white,
-                              size: 20.0,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (isLoading)
-                      const Center(
-                        child: CircularProgressIndicator(color: _brandRed),
-                      ),
-                  ],
+                  onMapCreated: (controller) => mapController = controller,
+                  markers: mapMarkers,
+                  polylines: mapPolylines,
+                  myLocationEnabled:
+                      true, // Otomatis memunculkan titik biru lokasi saat ini
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
                 ),
+
+                if (isLoading)
+                  const Center(
+                    child: CircularProgressIndicator(color: _brandRed),
+                  ),
 
                 // Tombol back custom
                 Positioned(
@@ -317,7 +360,9 @@ class _RoutePageState extends State<RoutePage>
                   right: 16.0,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 10.0),
+                      horizontal: 16.0,
+                      vertical: 10.0,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(14.0),
@@ -331,8 +376,11 @@ class _RoutePageState extends State<RoutePage>
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.store_rounded,
-                            color: _brandRed, size: 18.0),
+                        const Icon(
+                          Icons.store_rounded,
+                          color: _brandRed,
+                          size: 18.0,
+                        ),
                         const SizedBox(width: 8.0),
                         Expanded(
                           child: Text(
@@ -496,9 +544,10 @@ class _VehicleChip extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 4.0),
         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
         decoration: BoxDecoration(
-          color: isSelected
-              ? activeColor.withValues(alpha: 0.08)
-              : Colors.transparent,
+          color:
+              isSelected
+                  ? activeColor.withValues(alpha: 0.08)
+                  : Colors.transparent,
           borderRadius: BorderRadius.circular(14.0),
           border: Border.all(
             color: isSelected ? activeColor : Colors.grey.shade300,
@@ -523,14 +572,10 @@ class _VehicleChip extends StatelessWidget {
               duration: const Duration(milliseconds: 280),
               style: TextStyle(
                 fontSize: 11.0,
-                fontWeight:
-                    isSelected ? FontWeight.w700 : FontWeight.w400,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                 color: isSelected ? activeColor : inactiveColor,
               ),
-              child: Text(
-                option.label,
-                textAlign: TextAlign.center,
-              ),
+              child: Text(option.label, textAlign: TextAlign.center),
             ),
           ],
         ),

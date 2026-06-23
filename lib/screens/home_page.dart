@@ -1,8 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/supabase_service.dart';
 import '../admin/admin_page.dart';
@@ -20,7 +19,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final MapController mapController = MapController();
+  GoogleMapController? mapController;
 
   LatLng currentLocation = const LatLng(-7.2720, 112.7560);
 
@@ -82,7 +81,12 @@ class _HomePageState extends State<HomePage> {
           currentLocation = LatLng(position.latitude, position.longitude);
           _locationReady = true;
         });
-        if (mapReady) mapController.move(currentLocation, 15);
+
+        if (mapReady && mapController != null) {
+          mapController!.animateCamera(
+            CameraUpdate.newLatLngZoom(currentLocation, 15),
+          );
+        }
       }
 
       Geolocator.getPositionStream(
@@ -140,128 +144,87 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    List filteredPlaces = places.where((place) {
-      return place['name'].toString().toLowerCase().contains(
+    List filteredPlaces =
+        places.where((place) {
+          return place['name'].toString().toLowerCase().contains(
             search.toLowerCase(),
           );
-    }).toList();
+        }).toList();
 
     if (filterType == 'rating') {
       filteredPlaces.sort(
         (a, b) => toDouble(b['rating']).compareTo(toDouble(a['rating'])),
       );
     }
+
+    // --- BAGAian YANG TERPOTONG SEBELUMNYA ---
     if (filterType == 'distance') {
       filteredPlaces.sort((a, b) {
-        double distA =
-            calculateDistance(toDouble(a['lat']), toDouble(a['lng']));
-        double distB =
-            calculateDistance(toDouble(b['lat']), toDouble(b['lng']));
+        double distA = calculateDistance(
+          toDouble(a['lat']),
+          toDouble(a['lng']),
+        );
+        double distB = calculateDistance(
+          toDouble(b['lat']),
+          toDouble(b['lng']),
+        );
         return distA.compareTo(distB);
       });
     }
+
     if (filterType == 'farthest') {
       filteredPlaces.sort((a, b) {
-        double distA =
-            calculateDistance(toDouble(a['lat']), toDouble(a['lng']));
-        double distB =
-            calculateDistance(toDouble(b['lat']), toDouble(b['lng']));
+        double distA = calculateDistance(
+          toDouble(a['lat']),
+          toDouble(a['lng']),
+        );
+        double distB = calculateDistance(
+          toDouble(b['lat']),
+          toDouble(b['lng']),
+        );
         return distB.compareTo(distA);
       });
     }
 
+    // Set Markers untuk Google Maps
+    Set<Marker> mapMarkers =
+        filteredPlaces.map((place) {
+          return Marker(
+            markerId: MarkerId(place['id'].toString()),
+            position: LatLng(toDouble(place['lat']), toDouble(place['lng'])),
+            infoWindow: InfoWindow(
+              title: place['name'],
+              snippet: '⭐ ${place['rating']}',
+            ),
+          );
+        }).toSet();
+
+    // RETURN SCAFFOLD UTAMA
     return Scaffold(
       body: Stack(
         children: [
-          // ── PETA ──────────────────────────────────────────────────────────
-          FlutterMap(
-            mapController: mapController,
-            options: MapOptions(
-              initialCenter: currentLocation,
-              initialZoom: 15,
-              onMapReady: () {
-                mapReady = true;
-                if (_locationReady) {
-                  mapController.move(currentLocation, 15);
-                }
-              },
+          // PETA
+          GoogleMap(
+            initialCameraPosition: CameraPosition(
+              target: currentLocation,
+              zoom: 15,
             ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.alfamart_gubeng_maps',
-              ),
-              MarkerLayer(
-                markers: [
-                  // Lokasi user
-                  Marker(
-                    point: currentLocation,
-                    width: 48,
-                    height: 48,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.circle, color: Colors.blue, size: 20),
-                      ),
-                    ),
-                  ),
-                  // Marker Alfamart
-                  ...filteredPlaces.map((place) {
-                    return Marker(
-                      point: LatLng(
-                        toDouble(place['lat']),
-                        toDouble(place['lng']),
-                      ),
-                      width: 44,
-                      height: 44,
-                      child: GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => DetailPage(place: place),
-                          ),
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFFD32F2F),
-                              width: 2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.store,
-                            color: Color(0xFFD32F2F),
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ],
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+            markers: mapMarkers,
+            onMapCreated: (controller) {
+              mapController = controller;
+              mapReady = true;
+            },
           ),
 
-          // ── TOP BAR ───────────────────────────────────────────────────────
+          // TOP BAR
           Positioned(
             top: 50,
             left: 15,
             right: 15,
             child: Row(
               children: [
-                // Search box
                 Expanded(
                   child: Container(
                     height: 52,
@@ -288,8 +251,9 @@ class _HomePageState extends State<HomePage> {
                           color: Colors.grey[400],
                           fontSize: 14,
                         ),
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 15),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 15,
+                        ),
                       ),
                       onChanged: (value) => setState(() => search = value),
                     ),
@@ -316,44 +280,51 @@ class _HomePageState extends State<HomePage> {
                     onPressed: () {
                       showModalBottomSheet(
                         context: context,
-                        builder: (_) => Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ListTile(
-                              title: const Text('Rating Tertinggi'),
-                              leading: const Icon(Icons.star_rounded,
-                                  color: Colors.amber),
-                              onTap: () {
-                                setState(() => filterType = 'rating');
-                                Navigator.pop(context);
-                              },
+                        builder:
+                            (_) => Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  title: const Text('Rating Tertinggi'),
+                                  leading: const Icon(
+                                    Icons.star_rounded,
+                                    color: Colors.amber,
+                                  ),
+                                  onTap: () {
+                                    setState(() => filterType = 'rating');
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  title: const Text('Terdekat'),
+                                  leading: const Icon(
+                                    Icons.near_me_rounded,
+                                    color: Colors.blue,
+                                  ),
+                                  onTap: () {
+                                    setState(() => filterType = 'distance');
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                                ListTile(
+                                  title: const Text('Terjauh'),
+                                  leading: const Icon(
+                                    Icons.explore_rounded,
+                                    color: Colors.green,
+                                  ),
+                                  onTap: () {
+                                    setState(() => filterType = 'farthest');
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ],
                             ),
-                            ListTile(
-                              title: const Text('Terdekat'),
-                              leading: const Icon(Icons.near_me_rounded,
-                                  color: Colors.blue),
-                              onTap: () {
-                                setState(() => filterType = 'distance');
-                                Navigator.pop(context);
-                              },
-                            ),
-                            ListTile(
-                              title: const Text('Terjauh'),
-                              leading: const Icon(Icons.explore_rounded,
-                                  color: Colors.green),
-                              onTap: () {
-                                setState(() => filterType = 'farthest');
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ],
-                        ),
                       );
                     },
                   ),
                 ),
 
-                // Admin button (hanya tampil jika admin)
+                // Admin button
                 if (_isAdmin) ...[
                   const SizedBox(width: 10),
                   GestureDetector(
@@ -378,7 +349,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          // ── Bottom list (hanya muncul saat ada pencarian) ─────────────────
+          // Bottom list
           if (search.isNotEmpty)
             Positioned(
               bottom: 80,
@@ -440,7 +411,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-          // ── Floating Bottom Nav ───────────────────────────────────────────
+          // Floating Bottom Nav
           Positioned(
             bottom: 16,
             left: 24,
@@ -461,15 +432,12 @@ class _HomePageState extends State<HomePage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  // Peta
                   _NavItem(
                     icon: Icons.map_rounded,
                     label: 'Peta',
                     selected: _navIndex == 0,
                     onTap: () => setState(() => _navIndex = 0),
                   ),
-
-                  // Tersimpan
                   _NavItem(
                     icon: Icons.bookmark_rounded,
                     label: 'Tersimpan',
@@ -478,14 +446,10 @@ class _HomePageState extends State<HomePage> {
                       setState(() => _navIndex = 1);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const SavedPage(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const SavedPage()),
                       ).then((_) => setState(() => _navIndex = 0));
                     },
                   ),
-
-                  // Profil
                   _NavItem(
                     icon: Icons.person_rounded,
                     label: 'Profil',
@@ -494,9 +458,7 @@ class _HomePageState extends State<HomePage> {
                       setState(() => _navIndex = 2);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProfilePage(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const ProfilePage()),
                       ).then((_) {
                         if (mounted) {
                           setState(() => _navIndex = 0);
@@ -515,7 +477,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// ── Helper widget nav item ────────────────────────────────────────────────────
+// Helper widget nav item
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -542,12 +504,10 @@ class _NavItem extends StatelessWidget {
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: selected
-                    ? red.withValues(alpha: 0.12)
-                    : Colors.transparent,
+                color:
+                    selected ? red.withValues(alpha: 0.12) : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Icon(
@@ -561,8 +521,7 @@ class _NavItem extends StatelessWidget {
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight:
-                    selected ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                 color: selected ? red : Colors.grey.shade500,
               ),
             ),
