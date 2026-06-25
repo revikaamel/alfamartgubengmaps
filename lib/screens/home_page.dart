@@ -8,7 +8,6 @@ import '../admin/admin_page.dart';
 import '../data/places.dart';
 import 'detail_page.dart';
 import 'saved_page.dart';
-import 'login_screen.dart';
 import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {

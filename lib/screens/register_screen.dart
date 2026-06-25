@@ -62,28 +62,58 @@ class _RegisterScreenState extends State<RegisterScreen>
     });
 
     try {
-      await SupabaseService.signUp(
+      final response = await SupabaseService.signUp(
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
       );
 
       if (!mounted) return;
+
+      // Supabase kadang mengembalikan user null jika email sudah terdaftar
+      // tapi belum dikonfirmasi (mode "email confirmation" aktif)
+      if (response.user == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMsg =
+              'Email sudah terdaftar atau menunggu konfirmasi. Cek kotak masuk email Anda atau gunakan email lain.';
+        });
+        return;
+      }
+
       // Langsung ke HomePage setelah register berhasil
       Navigator.pushAndRemoveUntil(
         context,
         PageRouteBuilder(
           pageBuilder: (_, __, ___) => const HomePage(),
-          transitionsBuilder: (_, anim, __, child) =>
-              FadeTransition(opacity: anim, child: child),
+          transitionsBuilder:
+              (_, anim, __, child) =>
+                  FadeTransition(opacity: anim, child: child),
           transitionDuration: const Duration(milliseconds: 500),
         ),
         (route) => false,
       );
     } catch (e) {
       if (!mounted) return;
+      final msg = e.toString().toLowerCase();
+      String errMsg;
+      if (msg.contains('rate limit') || msg.contains('over_email_send_rate_limit') || msg.contains('429')) {
+        errMsg = 'Terlalu banyak percobaan. Tunggu beberapa menit lalu coba lagi.';
+      } else if (msg.contains('already registered') ||
+          msg.contains('user already exists') ||
+          msg.contains('email address is already')) {
+        errMsg = 'Email ini sudah terdaftar. Silakan login atau gunakan email lain.';
+      } else if (msg.contains('invalid email')) {
+        errMsg = 'Format email tidak valid.';
+      } else if (msg.contains('password') && msg.contains('weak')) {
+        errMsg = 'Password terlalu lemah. Gunakan minimal 6 karakter.';
+      } else if (msg.contains('network') || msg.contains('connection')) {
+        errMsg = 'Tidak ada koneksi internet. Periksa jaringan Anda.';
+      } else {
+        errMsg = 'Gagal mendaftar. Coba lagi.';
+      }
       setState(() {
         _isLoading = false;
-        _errorMsg = 'Gagal mendaftar. Email mungkin sudah terdaftar.';
+        _errorMsg = errMsg;
       });
     }
   }
@@ -248,8 +278,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   if (v == null || v.trim().isEmpty) {
                                     return 'Email tidak boleh kosong';
                                   }
-                                  if (!v.contains('@')) {
-                                    return 'Format email tidak valid';
+                                  // Validasi format email dengan regex yang lebih ketat
+                                  final emailRegex = RegExp(
+                                    r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$',
+                                  );
+                                  if (!emailRegex.hasMatch(v.trim())) {
+                                    return 'Format email tidak valid (contoh: nama@gmail.com)';
                                   }
                                   return null;
                                 },
@@ -276,8 +310,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                                       color: Colors.grey.shade500,
                                       size: 20,
                                     ),
-                                    onPressed: () => setState(
-                                        () => _obscurePass = !_obscurePass),
+                                    onPressed:
+                                        () => setState(
+                                          () => _obscurePass = !_obscurePass,
+                                        ),
                                   ),
                                 ),
                                 validator: (v) {
@@ -313,8 +349,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                                       color: Colors.grey.shade500,
                                       size: 20,
                                     ),
-                                    onPressed: () => setState(() =>
-                                        _obscureConfirm = !_obscureConfirm),
+                                    onPressed:
+                                        () => setState(
+                                          () =>
+                                              _obscureConfirm =
+                                                  !_obscureConfirm,
+                                        ),
                                   ),
                                 ),
                                 validator: (v) {
@@ -340,12 +380,16 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     color: _red.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                        color: _red.withValues(alpha: 0.3)),
+                                      color: _red.withValues(alpha: 0.3),
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.error_outline_rounded,
-                                          color: _red, size: 18),
+                                      const Icon(
+                                        Icons.error_outline_rounded,
+                                        color: _red,
+                                        size: 18,
+                                      ),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
@@ -380,31 +424,34 @@ class _RegisterScreenState extends State<RegisterScreen>
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                   ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2.5,
-                                          ),
-                                        )
-                                      : const Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.person_add_rounded,
-                                                size: 20),
-                                            SizedBox(width: 8),
-                                            Text(
-                                              'Daftar',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w700,
-                                              ),
+                                  child:
+                                      _isLoading
+                                          ? const SizedBox(
+                                            width: 22,
+                                            height: 22,
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2.5,
                                             ),
-                                          ],
-                                        ),
+                                          )
+                                          : const Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Icon(
+                                                Icons.person_add_rounded,
+                                                size: 20,
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text(
+                                                'Daftar',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                 ),
                               ),
                             ],

@@ -89,13 +89,31 @@ class SupabaseService {
   static Future<List<Map<String, dynamic>>> getSavedPlaces() async {
     final uid = currentUser?.id;
     if (uid == null) return [];
-    final response = await _client
+
+    // Query 1: ambil semua place_id yang disimpan user
+    final savedResponse = await _client
         .from('saved_places')
-        .select('place_id, places(*)')
+        .select('place_id')
         .eq('user_id', uid);
-    return List<Map<String, dynamic>>.from(
-      response.map((e) => e['places'] as Map<String, dynamic>),
-    );
+
+    final List savedList = savedResponse as List;
+    if (savedList.isEmpty) return [];
+
+    // Ambil daftar place_id (bisa berupa String UUID atau int)
+    final placeIds = savedList
+        .map((e) => e['place_id'])
+        .where((id) => id != null)
+        .toList();
+
+    if (placeIds.isEmpty) return [];
+
+    // Query 2: ambil detail tempat berdasarkan place_id
+    final placesResponse = await _client
+        .from('places')
+        .select()
+        .inFilter('id', placeIds);
+
+    return List<Map<String, dynamic>>.from(placesResponse);
   }
 
   /// Simpan tempat untuk user yang login
@@ -137,12 +155,33 @@ class SupabaseService {
 
   /// Ambil semua review untuk satu tempat
   static Future<List<Map<String, dynamic>>> getReviews(dynamic placeId) async {
+    // Ambil reviews tanpa embedded join (FK tidak diperlukan)
     final response = await _client
         .from('reviews')
-        .select('*, profiles(email)')
+        .select('id, user_id, place_id, text, rating, created_at')
         .eq('place_id', placeId)
         .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+
+    final reviews = List<Map<String, dynamic>>.from(response);
+
+    // Ambil email reviewer dari tabel profiles secara terpisah
+    for (final review in reviews) {
+      try {
+        final uid = review['user_id']?.toString();
+        if (uid != null) {
+          final profile = await _client
+              .from('profiles')
+              .select('email')
+              .eq('id', uid)
+              .maybeSingle();
+          review['profiles'] = profile ?? {'email': 'Pengguna'};
+        }
+      } catch (_) {
+        review['profiles'] = {'email': 'Pengguna'};
+      }
+    }
+
+    return reviews;
   }
 
   /// Cek apakah user sudah pernah review tempat ini
